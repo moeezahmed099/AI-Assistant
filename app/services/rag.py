@@ -21,6 +21,44 @@ MIN_VECTOR_SIMILARITY_NO_KEYWORD = 0.40
 
 
 # ==========================================================
+# Greeting Detection
+#
+# Casual greetings ("hi", "hello") aren't document questions,
+# so running them through vector search/the no-match gate
+# incorrectly returns "I couldn't find that information."
+# Catch these early and respond conversationally instead.
+# ==========================================================
+
+GREETING_PATTERNS = {
+    "hi", "hii", "hiii", "hiya", "hello", "helo", "hey", "heyy",
+    "hola", "yo", "sup", "whats up", "wassup",
+    "good morning", "good afternoon", "good evening", "good day",
+    "greetings", "howdy",
+    "salaam", "salam", "assalam o alaikum", "asalam o alaikum",
+    "assalamualaikum", "aoa", "as salam",
+    "thanks", "thank you", "thanks!", "thank you!", "ty",
+    "ok", "okay", "cool", "nice",
+}
+
+
+def _is_greeting(query: str) -> bool:
+
+    normalized = re.sub(r"[^a-z\s]", "", query.lower()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    return normalized in GREETING_PATTERNS
+
+
+def _greeting_response() -> str:
+
+    return (
+        "Hi there! 👋 I'm ready to help you explore your documents. "
+        "Upload a file (PDF, TXT, Markdown, or Word) or ask me a "
+        "question about what's already in the knowledge base."
+    )
+
+
+# ==========================================================
 # Text Helpers
 # ==========================================================
 
@@ -526,6 +564,26 @@ def ask_rag(
     )
 
     # ======================================================
+    # 0. Greeting Detection
+    #
+    # Casual greetings aren't document questions — answer
+    # them conversationally instead of running them through
+    # the retrieval pipeline (which would incorrectly return
+    # "I couldn't find that information").
+    # ======================================================
+
+    if _is_greeting(question):
+
+        print("\nDetected greeting — responding conversationally.")
+        print("=" * 70)
+
+        return {
+            "answer": _greeting_response(),
+            "sources": [],
+            "retrieval_question": question,
+        }
+
+    # ======================================================
     # 1. Resolve Follow-Up
     # ======================================================
 
@@ -770,10 +828,6 @@ def ask_rag(
 
     # ======================================================
     # 9b. Hallucination Check
-    #
-    # Rule-based groundedness signal: checks whether factual
-    # claims in the generated answer (proper nouns, numbers)
-    # appear in the retrieved context.
     # ======================================================
 
     groundedness = check_groundedness(answer, context)
