@@ -14,6 +14,7 @@ from app.ingestion.docx_loader import load_docx_file
 from app.ingestion.web_loader import load_web_page, get_page_title
 from app.ingestion.chunker import chunk_text, chunk_pages
 from app.services.rag import ask_rag, _load_all_documents
+from app.modules.rag.router import router as rag_module_router
 from app.db.upload_vectors import store_vectors
 from app.db.qdrant_connection import client, COLLECTION_NAME
 
@@ -26,6 +27,8 @@ app = FastAPI(
     title="RAG Chatbot API",
     version="1.0.0"
 )
+
+app.include_router(rag_module_router)
 
 
 # ============================================================

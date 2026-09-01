@@ -21,9 +21,9 @@ MIN_VECTOR_SIMILARITY_NO_KEYWORD = 0.40
 
 
 # ==========================================================
-# Greeting Detection
+# Greeting / Acknowledgement Detection
 #
-# Casual greetings ("hi", "hello") aren't document questions,
+# Casual messages ("hi", "thanks") aren't document questions,
 # so running them through vector search/the no-match gate
 # incorrectly returns "I couldn't find that information."
 # Catch these early and respond conversationally instead.
@@ -36,8 +36,13 @@ GREETING_PATTERNS = {
     "greetings", "howdy",
     "salaam", "salam", "assalam o alaikum", "asalam o alaikum",
     "assalamualaikum", "aoa", "as salam",
+}
+
+ACKNOWLEDGEMENT_PATTERNS = {
     "thanks", "thank you", "thanks!", "thank you!", "ty",
-    "ok", "okay", "cool", "nice",
+    "thankyou", "thnx", "thx",
+    "ok", "okay", "cool", "nice", "great", "awesome", "perfect",
+    "got it", "understood", "alright",
 }
 
 
@@ -49,6 +54,14 @@ def _is_greeting(query: str) -> bool:
     return normalized in GREETING_PATTERNS
 
 
+def _is_acknowledgement(query: str) -> bool:
+
+    normalized = re.sub(r"[^a-z\s]", "", query.lower()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    return normalized in ACKNOWLEDGEMENT_PATTERNS
+
+
 def _greeting_response() -> str:
 
     return (
@@ -56,6 +69,11 @@ def _greeting_response() -> str:
         "Upload a file (PDF, TXT, Markdown, or Word) or ask me a "
         "question about what's already in the knowledge base."
     )
+
+
+def _acknowledgement_response() -> str:
+
+    return "You're welcome! 😊 Let me know if you have any other questions."
 
 
 # ==========================================================
@@ -564,11 +582,11 @@ def ask_rag(
     )
 
     # ======================================================
-    # 0. Greeting Detection
+    # 0. Greeting / Acknowledgement Detection
     #
-    # Casual greetings aren't document questions — answer
-    # them conversationally instead of running them through
-    # the retrieval pipeline (which would incorrectly return
+    # Casual messages aren't document questions — answer them
+    # conversationally instead of running them through the
+    # retrieval pipeline (which would incorrectly return
     # "I couldn't find that information").
     # ======================================================
 
@@ -579,6 +597,17 @@ def ask_rag(
 
         return {
             "answer": _greeting_response(),
+            "sources": [],
+            "retrieval_question": question,
+        }
+
+    if _is_acknowledgement(question):
+
+        print("\nDetected acknowledgement — responding conversationally.")
+        print("=" * 70)
+
+        return {
+            "answer": _acknowledgement_response(),
             "sources": [],
             "retrieval_question": question,
         }
