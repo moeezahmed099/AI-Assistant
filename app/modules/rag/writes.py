@@ -130,6 +130,37 @@ def insert_chat_history(pipeline_run_id: str, role: str, message: str):
         conn.close()
 
 
+def update_pipeline_status(pipeline_run_id: str, status: str):
+    """
+    Updates pipeline_runs.status (and updated_at) for the given
+    pipeline_run_id. Moeez's gateway/orchestrator polls this column
+    to know when RAG has finished — module_events alone doesn't
+    trigger it.
+
+    REAL SCHEMA (confirmed via Supabase SQL Editor):
+    pipeline_runs (
+        id          uuid primary key,
+        status      varchar,
+        created_at  timestamptz,
+        updated_at  timestamptz
+    )
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE pipeline_runs
+                SET status = %s, updated_at = now()
+                WHERE id = %s;
+                """,
+                (status, pipeline_run_id),
+            )
+            conn.commit()
+    finally:
+        conn.close()
+
+
 def insert_module_event(pipeline_run_id: str, event: str, payload: dict = None):
     """
     Insert a row into module_events, used by the Agent module / dashboard

@@ -8,6 +8,7 @@ from app.modules.rag.writes import (
     insert_chat_history,
     insert_module_event,
     fetch_extracted_data,
+    update_pipeline_status,
 )
 from app.services.rag import ask_rag
 
@@ -71,6 +72,9 @@ def process(request: RagProcessRequest):
 
     # ----------------------------------------------------
     # 3. Run existing RAG pipeline
+    #
+    # question mode: real Q&A against the knowledge base
+    # summarization mode: ask a generic "summarize this" prompt
     # ----------------------------------------------------
 
     question = request.question or "Summarize this product record."
@@ -150,6 +154,8 @@ def process(request: RagProcessRequest):
         "rag_completed",
         {"rag_document_id": rag_document_id, "grounded": grounded},
     )
+
+    update_pipeline_status(request.pipeline_run_id, "rag_complete")
 
     return {
         "pipeline_run_id": request.pipeline_run_id,
