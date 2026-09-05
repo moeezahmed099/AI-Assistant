@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Generator
@@ -5,11 +6,22 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# Load environment variables
-load_dotenv()
+logger = logging.getLogger(__name__)
+
+# Explicitly load environment variables from backend/.env relative to this file
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+env_file_found = ENV_PATH.is_file()
+load_dotenv(dotenv_path=ENV_PATH)
+
+if env_file_found:
+    logger.info(f"Loaded environment variables from '{ENV_PATH}' (found={env_file_found}).")
+    print(f"[database] Loaded environment variables from '{ENV_PATH}' (found={env_file_found}).")
+else:
+    logger.warning(f"Environment file NOT found at '{ENV_PATH}' (found={env_file_found}). Relying on system environment.")
+    print(f"[database] WARNING: Environment file NOT found at '{ENV_PATH}' (found={env_file_found}).")
 
 # Check for DATABASE_URL; default to SQLite in-memory / local fallback if not configured
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip() or os.getenv("SHARED_DATABASE_URL", "").strip()
 
 if DATABASE_URL:
     # Standardize postgres dialect for SQLAlchemy
@@ -29,6 +41,8 @@ if DATABASE_URL:
         )
     else:
         engine = create_engine(DATABASE_URL)
+    logger.info("Database engine initialized for PostgreSQL/remote database.")
+    print("[database] Database engine initialized for PostgreSQL/remote database.")
 else:
     # Fallback to local SQLite database when DATABASE_URL is not set
     DEFAULT_SQLITE_PATH = Path(__file__).resolve().parents[3] / "ai_assistant.db"
@@ -37,6 +51,8 @@ else:
         SQLITE_URL,
         connect_args={"check_same_thread": False},
     )
+    logger.warning(f"DATABASE_URL not set; falling back to local SQLite at '{DEFAULT_SQLITE_PATH}'")
+    print(f"[database] WARNING: DATABASE_URL not set; falling back to local SQLite at '{DEFAULT_SQLITE_PATH}'")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
