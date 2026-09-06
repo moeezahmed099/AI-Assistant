@@ -128,9 +128,19 @@ def process(request: RagProcessRequest):
 
     citations.append(build_vision_citation(vision_data))
 
-    groundedness = result.get("groundedness") or {}
-    grounded = not groundedness.get("flagged", False)
-    groundedness_score = groundedness.get("groundedness_score")
+    # ask_rag() only includes "groundedness" in its result when it
+    # actually generated an answer and ran the hallucination check.
+    # In "no match" cases it omits the key entirely — so grounded
+    # must be None here, not True, otherwise a "couldn't find that
+    # information" answer incorrectly reports itself as grounded.
+    groundedness = result.get("groundedness")
+
+    if groundedness is None:
+        grounded = None
+        groundedness_score = None
+    else:
+        grounded = not groundedness.get("flagged", False)
+        groundedness_score = groundedness.get("groundedness_score")
 
     if request.question:
         insert_chat_history(request.pipeline_run_id, "bot", result.get("answer", ""))
