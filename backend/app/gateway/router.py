@@ -150,20 +150,25 @@ async def websocket_pipeline_stream(
 # 3. Downstream Module Route Stubs (Steps 3, 4, and 5)
 # -----------------------------------------------------------------------------
 
-@router.post(
-    "/api/v1/vision/run",
-    response_model=NotImplementedResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="[STUB] Step 3: Vision Module Integration",
-)
-async def vision_run_stub():
-    """Route stub for Step 3 (Vision Module Integration) owned by Muneeb."""
-    return NotImplementedResponse(
-        status="not_implemented",
-        step="Step 3 (Vision Module Integration)",
-        owner="Muneeb",
-        message="Vision module integration is pending execution by Muneeb.",
-    )
+# The former Vision 501 stub is intentionally disabled. The eventual mounted
+# Vision router will own the Vision routes, so registering this placeholder
+# would conflict with the real implementation. Keep the original stub below
+# as a record of the integration point it represented.
+#
+# @router.post(
+#     "/api/v1/vision/run",
+#     response_model=NotImplementedResponse,
+#     status_code=status.HTTP_501_NOT_IMPLEMENTED,
+#     summary="[STUB] Step 3: Vision Module Integration",
+# )
+# async def vision_run_stub():
+#     """Route stub for Step 3 (Vision Module Integration) owned by Muneeb."""
+#     return NotImplementedResponse(
+#         status="not_implemented",
+#         step="Step 3 (Vision Module Integration)",
+#         owner="Muneeb",
+#         message="Vision module integration is pending execution by Muneeb.",
+#     )
 
 
 @router.post(

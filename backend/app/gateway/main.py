@@ -30,6 +30,9 @@ async def lifespan(app: FastAPI):
         logger.info("Gateway database initialized successfully.")
     except Exception as exc:
         logger.warning(f"Could not auto-initialize DB tables on startup (may be handled externally): {exc}")
+
+    # TODO: Initialize Vision's CLIP/FAISS models here once Muneeb exposes
+    # an application-startup hook for the mounted Vision router.
     yield
 
 
@@ -52,6 +55,11 @@ app.add_middleware(
 # Mount Routers
 app.include_router(gateway_router)
 app.include_router(agent_router)
+
+# TODO: Mount Vision router once Muneeb restructures app/main.py into
+# an APIRouter. Expected import:
+# from app.vision_router import router as vision_router
+# app.include_router(vision_router, prefix="/api/v1/vision", tags=["Vision"])
 
 
 @app.get("/health", tags=["Health"])
