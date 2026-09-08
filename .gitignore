@@ -11,3 +11,5 @@ htmlcov/
 
 frontend/node_modules/
 frontend/.vite/
+
+gateway-8000.log
