@@ -7,16 +7,27 @@ import './RagSection.css'
  * RAG section for the shared frontend shell.
  *
  * Consumes the active pipeline_run_id from PipelineContext and displays
- * the RAG stage's result (summary, citations, grounded status) once the
- * gateway reports it. No manual re-upload or copy/paste is needed — this
- * section just reacts to pipelineStatus as it updates over the shared
- * WebSocket connection.
+ * the RAG stage's result (answer, citations, grounded status) once the
+ * gateway reports it.
  *
- * ASSUMPTION (not yet confirmed against the gateway's real schema):
- * pipelineStatus.rag_result is expected to mirror the shape returned by
- * POST /api/v1/rag/process — { summary, citations, grounded,
- * groundedness_score, status }. Adjust the field reads below once this
- * is confirmed against a live gateway response.
+ * CONFIRMED SHAPE (real sample from Moeez, live end-to-end run):
+ * pipelineStatus.rag_result = {
+ *   rag_document_id,
+ *   content,              // the answer text
+ *   metadata: {
+ *     status,
+ *     grounded,           // true | false | null (null = not computed,
+ *                          // e.g. no real answer was generated)
+ *     citations: [...],
+ *     groundedness_score, // number | null
+ *   },
+ *   count
+ * }
+ *
+ * Important: citations can be populated even when content is a
+ * "couldn't find" refusal (they reflect the Vision-matched item, not
+ * proof an answer was found) — so content/grounded and citations are
+ * shown independently, never used to infer one another.
  */
 export default function RagSection() {
   const { currentPipelineRunId, pipelineStatus, connectionStatus } = usePipeline()
@@ -68,7 +79,12 @@ function EmptyState({ message, subtle }) {
 }
 
 function RagResult({ result }) {
-  const { summary, citations = [], grounded, groundedness_score, status } = result
+  const content = result.content
+  const metadata = result.metadata || {}
+  const { status, grounded, groundedness_score } = metadata
+  const citations = metadata.citations || []
+
+  const hasNoRealAnswer = !content || content.trim().toLowerCase().includes("couldn't find")
 
   return (
     <div className="rag-result">
@@ -78,12 +94,17 @@ function RagResult({ result }) {
       </div>
 
       <p className="rag-result__summary">
-        {summary && summary.trim() ? summary : 'No answer was generated for this run.'}
+        {content && content.trim() ? content : 'No answer was generated for this run.'}
       </p>
 
       {citations.length > 0 && (
         <div className="rag-citations">
           <h3>Citations</h3>
+          {hasNoRealAnswer && (
+            <p className="rag-citations__note">
+              These reflect the Vision-matched item for this run, not confirmation that a grounded answer was found.
+            </p>
+          )}
           <ul>
             {citations.map((c, i) => (
               <li key={i} className="rag-citation">
@@ -113,6 +134,9 @@ function StatusPill({ status }) {
 }
 
 function GroundedPill({ grounded, score }) {
+  // grounded can be true, false, or null (null = not computed — e.g. no
+  // real answer was generated, so groundedness was never evaluated).
+  // This must stay a three-way state, not a true/false toggle.
   if (grounded === null || grounded === undefined) {
     return <span className="rag-pill rag-pill--neutral">Not checked</span>
   }
