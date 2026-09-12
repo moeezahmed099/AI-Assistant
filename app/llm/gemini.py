@@ -1,4 +1,4 @@
-﻿from google import genai
+from google import genai
 import os
 import re
 import time
@@ -22,7 +22,7 @@ if not GEMINI_API_KEY:
 # Model can now be changed from .env
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-3.5-flash"
+    "gemini-3.5-flash-lite"
 )
 
 # Number of retries for temporary API errors

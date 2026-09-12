@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -90,9 +91,26 @@ app = FastAPI(
 )
 
 # Configure CORS for frontend access
+# Production: set ALLOWED_ORIGINS env var on Render to the deployed Vercel URL (e.g. https://your-app.vercel.app), comma-separated if multiple origins needed.
+# Browsers reject allow_origins=["*"] when allow_credentials=True.
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
+env_origins = os.getenv("ALLOWED_ORIGINS")
+allowed_origins = (
+    [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+    if env_origins
+    else DEFAULT_ALLOWED_ORIGINS
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

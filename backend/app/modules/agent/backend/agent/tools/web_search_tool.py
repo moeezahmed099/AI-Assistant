@@ -50,11 +50,11 @@ class WebSearchTool(Tool):
                     error_message="Invalid query argument: 'query' string is required.",
                 )
 
-            api_key = os.getenv("SEARCH_API_KEY")
-            if not api_key or not api_key.strip():
+            api_key = (os.getenv("SEARCH_API_KEY") or "").strip() or (os.getenv("TAVILY_API_KEY") or "").strip()
+            if not api_key:
                 return ToolResult(
                     success=False,
-                    error_message="Tavily API key is missing in SEARCH_API_KEY environment variable.",
+                    error_message="Tavily API key is missing in SEARCH_API_KEY or TAVILY_API_KEY environment variable.",
                 )
 
             payload = {

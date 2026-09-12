@@ -1,4 +1,12 @@
+import sys
+from pathlib import Path
 import pytest
+
+# Ensure backend directory is on sys.path
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 from agent.tools import default_registry
 from agent.tools.base import ToolResult
 from agent.tools.calculator_tool import CalculatorTool
