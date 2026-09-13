@@ -7,16 +7,17 @@ import './RagSection.css'
  * RAG section for the shared frontend shell.
  *
  * Consumes the active pipeline_run_id from PipelineContext and displays
- * the RAG stage's result (summary, citations, grounded status) once the
+ * the RAG stage's result (content, citations, grounded status) once the
  * gateway reports it. No manual re-upload or copy/paste is needed — this
  * section just reacts to pipelineStatus as it updates over the shared
  * WebSocket connection.
  *
- * ASSUMPTION (not yet confirmed against the gateway's real schema):
- * pipelineStatus.rag_result is expected to mirror the shape returned by
- * POST /api/v1/rag/process — { summary, citations, grounded,
- * groundedness_score, status }. Adjust the field reads below once this
- * is confirmed against a live gateway response.
+ * CONFIRMED against the gateway's real schema (Week 6 handoff, Section 2):
+ * pipelineStatus.rag_result mirrors the shape returned by
+ * POST /api/v1/rag/process — { rag_document_id, content, metadata: {
+ * status, grounded, citations, groundedness_score } }. The answer text
+ * lives at result.content (not result.summary), and status/grounded/
+ * citations/groundedness_score live under result.metadata (not top-level).
  */
 export default function RagSection() {
   const { currentPipelineRunId, pipelineStatus, connectionStatus } = usePipeline()
@@ -68,7 +69,11 @@ function EmptyState({ message, subtle }) {
 }
 
 function RagResult({ result }) {
-  const { summary, citations = [], grounded, groundedness_score, status } = result
+  // FIX: the gateway nests everything under `content` (the answer text)
+  // and `metadata` (status/grounded/citations/score) — not flat on `result`
+  // the way this component originally assumed.
+  const { content, metadata = {} } = result
+  const { status, grounded, groundedness_score, citations = [] } = metadata
 
   return (
     <div className="rag-result">
@@ -78,7 +83,7 @@ function RagResult({ result }) {
       </div>
 
       <p className="rag-result__summary">
-        {summary && summary.trim() ? summary : 'No answer was generated for this run.'}
+        {content && content.trim() ? content : 'No answer was generated for this run.'}
       </p>
 
       {citations.length > 0 && (
