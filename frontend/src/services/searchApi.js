@@ -59,9 +59,10 @@ export function getCatalogImageUrl(imagePathOrUrl) {
  * @param {File|Blob|string} imageFileOrFilename - Uploaded image File or catalog image filename string.
  * @param {number} topK - Number of top results to return (1-50, default 10).
  * @param {string} model - Embedding model choice ('clip' or 'resnet').
+ * @param {string} pipelineRunId - Optional active pipeline run UUID.
  * @returns {Promise<Object>} - SearchResponse payload.
  */
-export async function searchProducts(imageFileOrFilename, topK = 10, model = 'clip') {
+export async function searchProducts(imageFileOrFilename, topK = 10, model = 'clip', pipelineRunId = null) {
   if (!imageFileOrFilename) {
     throw new Error('An image file or catalog filename must be provided for visual search.')
   }
@@ -71,8 +72,57 @@ export async function searchProducts(imageFileOrFilename, topK = 10, model = 'cl
     throw new Error('top_k must be an integer between 1 and 50.')
   }
 
+  const baseUrl = getApiBaseUrl()
+  const isUploadedFile = typeof imageFileOrFilename !== 'string'
+  const cleanRunId = pipelineRunId && typeof pipelineRunId === 'string' ? pipelineRunId.trim() : null
+
+  // 1. Unified Gateway Run Intake Flow:
+  // When an active pipeline run ID and an uploaded image File are provided, call /api/v1/gateway/run
+  // to persist assets, extracted_data, module_events, and transition pipeline_runs.status to vision_complete.
+  if (cleanRunId && isUploadedFile) {
+    const gatewayFormData = new FormData()
+    gatewayFormData.append('image', imageFileOrFilename)
+    gatewayFormData.append('run_id', cleanRunId)
+    gatewayFormData.append('top_k', topKNum.toString())
+    gatewayFormData.append('model', model || 'clip')
+
+    try {
+      const gwResponse = await fetch(`${baseUrl}/api/v1/gateway/run`, {
+        method: 'POST',
+        body: gatewayFormData,
+      })
+
+      if (gwResponse.ok) {
+        const gwData = await gwResponse.json()
+        const candidateMatches = Array.isArray(gwData?.matches)
+          ? gwData.matches
+          : Array.isArray(gwData?.results)
+          ? gwData.results
+          : []
+
+        return {
+          query_filename: imageFileOrFilename.name || 'query.jpg',
+          top_k: topKNum,
+          total_results: candidateMatches.length,
+          model_used: model === 'resnet' ? 'ResNet_50' : 'OpenCLIP_ViT_B_32',
+          results: candidateMatches,
+          pipeline_run_id: gwData.pipeline_run_id || cleanRunId,
+          run_id: gwData.run_id || cleanRunId,
+          status: gwData.status || 'vision_complete',
+          primary_match: gwData.primary_match || candidateMatches[0] || null,
+          extracted_data_id: gwData.extracted_data_id || null,
+        }
+      }
+      // If gateway returns 404 or 503, log warning and fall back to /search
+      console.warn(`Gateway /api/v1/gateway/run returned HTTP ${gwResponse.status}; falling back to /search.`)
+    } catch (gwErr) {
+      console.warn('Gateway run request failed; falling back to /search:', gwErr)
+    }
+  }
+
+  // 2. Direct / Search Fallback Flow (also passes run_id for status transition when supported)
   const formData = new FormData()
-  if (typeof imageFileOrFilename === 'string') {
+  if (!isUploadedFile) {
     // Direct server-side catalog item search (fast, 0-network download)
     formData.append('catalog_filename', imageFileOrFilename.trim())
   } else {
@@ -81,8 +131,10 @@ export async function searchProducts(imageFileOrFilename, topK = 10, model = 'cl
   }
   formData.append('top_k', topKNum.toString())
   formData.append('model', model || 'clip')
+  if (cleanRunId) {
+    formData.append('run_id', cleanRunId)
+  }
 
-  const baseUrl = getApiBaseUrl()
   const searchUrl = `${baseUrl}/search`
 
   try {
@@ -118,9 +170,11 @@ export async function searchProducts(imageFileOrFilename, topK = 10, model = 'cl
       throw error
     }
 
-    if (!data || !Array.isArray(data.results)) {
+    const items = data && (Array.isArray(data.results) ? data.results : Array.isArray(data.matches) ? data.matches : null)
+    if (!data || !items) {
       throw new Error('Invalid or malformed response format received from visual search API.')
     }
+    data.results = items
 
     return data
   } catch (err) {

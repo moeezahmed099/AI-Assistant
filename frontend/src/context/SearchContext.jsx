@@ -103,7 +103,7 @@ export function SearchProvider({ children }) {
         }
         setCurrentPipelineRunId(pipelineRunId)
 
-        const response = await searchProducts(fileOrFilename, requestedTopK, requestedModel)
+        const response = await searchProducts(fileOrFilename, requestedTopK, requestedModel, pipelineRunId)
         setSearchResults(response)
 
         // Persist snapshot to sessionStorage so refreshing /results works seamlessly
