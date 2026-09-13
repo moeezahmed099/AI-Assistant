@@ -15,6 +15,10 @@ from app.db.shared_database import (
     get_extracted_data_by_run_id,
     get_shared_connection,
 )
+from backend.app.gateway.events import (
+    EVENT_STATUS_UPDATED,
+    pipeline_event_emitter,
+)
 from backend.app.modules.agent.adapter import run_agent
 
 logger = logging.getLogger(__name__)
@@ -23,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Allow deployments to override the loopback URL without changing orchestration code.
 RAG_PROCESS_URL = os.getenv(
     "RAG_PROCESS_URL",
-    "http://127.0.0.1:8000/api/v1/rag/process",
+    f"http://127.0.0.1:{os.getenv('PORT', '8000')}/api/v1/rag/process",
 )
 RAG_REQUEST_TIMEOUT_SECONDS = 30.0
 
@@ -107,6 +111,16 @@ def _claim_run(
                     "previous_status": expected_status,
                 },
             )
+            pipeline_event_emitter.emit(
+                pipeline_run_id=pipeline_run_id,
+                event_type=EVENT_STATUS_UPDATED,
+                message=f"Gateway poller claimed run for {module} processing.",
+                status=claimed_status,
+                payload={
+                    "triggered_by": "gateway_poller",
+                    "previous_status": expected_status,
+                },
+            )
             return True
 
 
@@ -146,6 +160,16 @@ def _mark_failed(
                     "error": error_message,
                 },
             )
+            pipeline_event_emitter.emit(
+                pipeline_run_id=pipeline_run_id,
+                event_type=EVENT_STATUS_UPDATED,
+                message=f"{module.upper()} trigger failed: {error_message}",
+                status=failed_status,
+                payload={
+                    "triggered_by": "gateway_poller",
+                    "error": error_message,
+                },
+            )
             return True
 
 
@@ -180,6 +204,16 @@ async def _trigger_rag(pipeline_run_id: str) -> None:
         pipeline_run_id,
         response.status_code,
     )
+    pipeline_event_emitter.emit(
+        pipeline_run_id=pipeline_run_id,
+        event_type=EVENT_STATUS_UPDATED,
+        message="RAG processing completed.",
+        status="rag_complete",
+        payload={
+            "triggered_by": "gateway_poller",
+            "status_code": response.status_code,
+        },
+    )
 
 
 async def _trigger_agent(pipeline_run_id: str) -> None:
@@ -191,6 +225,29 @@ async def _trigger_agent(pipeline_run_id: str) -> None:
         pipeline_run_id,
         response.agent_run_id,
         response.status,
+    )
+    decision_value = (
+        response.decision.value
+        if hasattr(response.decision, "value")
+        else str(response.decision)
+    )
+    final_status = (
+        "agent_complete"
+        if decision_value != "search_more_context"
+        else "agent_processing"
+    )
+    pipeline_event_emitter.emit(
+        pipeline_run_id=pipeline_run_id,
+        event_type=EVENT_STATUS_UPDATED,
+        message="Agent processing completed.",
+        status=final_status,
+        payload={
+            "triggered_by": "gateway_poller",
+            "decision": decision_value,
+            "decision_outcome": decision_value,
+            "agent_run_id": response.agent_run_id,
+            "status": response.status,
+        },
     )
 
 
