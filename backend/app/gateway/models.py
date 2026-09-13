@@ -4,7 +4,10 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import DateTime, Float, ForeignKey, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.gateway.database import Base
+try:
+    from backend.app.gateway.database import Base
+except ImportError:
+    from app.gateway.database import Base
 
 
 def generate_uuid_str() -> str:
@@ -51,6 +54,10 @@ class PipelineRun(Base):
         cascade="all, delete-orphan",
     )
     chat_messages: Mapped[List["ChatHistory"]] = relationship(
+        back_populates="pipeline_run",
+        cascade="all, delete-orphan",
+    )
+    agent_runs: Mapped[List["AgentRun"]] = relationship(
         back_populates="pipeline_run",
         cascade="all, delete-orphan",
     )
@@ -143,4 +150,43 @@ class ChatHistory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), default=get_utc_now)
 
     pipeline_run: Mapped["PipelineRun"] = relationship(back_populates="chat_messages")
+
+
+class AgentRun(Base):
+    """
+    Agent execution summary and decision outcome.
+    Corresponds to shared `agent_runs` table in PostgreSQL.
+    """
+    __tablename__ = "agent_runs"
+
+    agent_run_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid_str)
+    pipeline_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("pipeline_runs.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="in_progress")
+    decision: Mapped[str] = mapped_column(String(50), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), default=get_utc_now)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    pipeline_run: Mapped["PipelineRun"] = relationship(back_populates="agent_runs")
+    actions: Mapped[List["AgentAction"]] = relationship(
+        back_populates="agent_run",
+        cascade="all, delete-orphan",
+    )
+
+
+class AgentAction(Base):
+    """
+    Granular action, evaluation step, or tool call trace.
+    Corresponds to shared `agent_actions` table in PostgreSQL.
+    """
+    __tablename__ = "agent_actions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid_str)
+    agent_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("agent_runs.agent_run_id", ondelete="CASCADE"), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    payload: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), default=get_utc_now)
+
+    agent_run: Mapped["AgentRun"] = relationship(back_populates="actions")
+
 

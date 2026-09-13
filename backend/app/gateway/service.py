@@ -4,16 +4,28 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from backend.app.gateway import models
-from backend.app.gateway.events import (
-    EVENT_RUN_CREATED,
-    EVENT_STATUS_UPDATED,
-    pipeline_event_emitter,
-)
-from backend.app.schemas.contracts import (
-    PipelineRunStatusResponse,
-    PipelineStatus,
-)
+try:
+    from backend.app.gateway import models
+    from backend.app.gateway.events import (
+        EVENT_RUN_CREATED,
+        EVENT_STATUS_UPDATED,
+        pipeline_event_emitter,
+    )
+    from backend.app.schemas.contracts import (
+        PipelineRunStatusResponse,
+        PipelineStatus,
+    )
+except ImportError:
+    from app.gateway import models
+    from app.gateway.events import (
+        EVENT_RUN_CREATED,
+        EVENT_STATUS_UPDATED,
+        pipeline_event_emitter,
+    )
+    from app.schemas.contracts import (
+        PipelineRunStatusResponse,
+        PipelineStatus,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +132,23 @@ def get_pipeline_run_status(db: Session, pipeline_run_id: str) -> Optional[Pipel
             "count": len(rag_records),
         }
 
-    # Downstream Agent results (null for stages not yet executed)
+    # Downstream Agent results
     agent_result: Optional[Dict[str, Any]] = None
+    agent_record = (
+        db.query(models.AgentRun)
+        .filter(models.AgentRun.pipeline_run_id == pipeline_run_id)
+        .order_by(models.AgentRun.created_at.desc())
+        .first()
+    )
+    if agent_record:
+        agent_result = {
+            "agent_run_id": str(agent_record.agent_run_id),
+            "status": agent_record.status,
+            "decision": agent_record.decision,
+            "reason": agent_record.reason,
+            "created_at": agent_record.created_at.isoformat() if agent_record.created_at else None,
+            "completed_at": agent_record.completed_at.isoformat() if agent_record.completed_at else None,
+        }
 
     # Formulate events history
     events_list: List[Dict[str, Any]] = []

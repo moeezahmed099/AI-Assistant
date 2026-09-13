@@ -1,0 +1,3 @@
+[database] Loaded environment variables from 'D:\Moeez Ahmed\BS Artificial Intelligence\Internship\Phebsoft\AI-Assistant\AI-Assistant\backend\.env' (found=True).
+[database] Database engine initialized for PostgreSQL/remote database.
+INFO:     127.0.0.1:62188 - "GET /health HTTP/1.1" 200 OK

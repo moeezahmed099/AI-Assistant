@@ -8,3 +8,8 @@ htmlcov/
 *.sqlite3
 *.db
 *.sqlite
+
+frontend/node_modules/
+frontend/.vite/
+
+gateway-8000.log
