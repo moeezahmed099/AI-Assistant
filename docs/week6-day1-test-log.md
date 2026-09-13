@@ -725,15 +725,15 @@ Remove the test-only lines from `backend/app/gateway/orchestrator_poller.py` and
 
 ## Verification Summary Matrix
 
-| Criterion | Case 1: Full Chain Success | Case 2: Intentional Partial Failure (State Injection) | Case 3: Downstream Failure Path (Real Data) |
-| :--- | :--- | :--- | :--- |
-| **Pipeline Run ID** | `c2f9a807-77ed-4d66-86c8-03b9ccfdff23` | `55354463-e2ba-4e20-915d-694582d26a88` | `cbb76ad2-c7e3-4eff-bdac-e8b29ef535b9` |
-| **Tested Modalities** | Vision (CLIP) + RAG (Vector Doc) + Agent | Orchestration Poller + Database State Machine | Vision (CLIP real image `10003.jpg`) + Poller downstream fault recovery |
-| **Terminal Status** | `agent_processing` / `agent_complete` decision | `rag_failed` | `rag_failed` |
-| **Audit Trail Depth** | 9 discrete lifecycle events logged | 3 discrete lifecycle events logged | 5 discrete lifecycle events logged |
-| **Fault Recovery** | N/A (Nominal path handled thin RAG) | Graceful error handling; no service crash; clean audit trail | Graceful failure catch; atomic CAS claim; zero crashes; clean recovery |
-| **Reproducibility** | Full local commands & sample artifact documented | Full local commands & manual state-injection steps documented | Full local commands, test flag, and clean rollback documented |
-| **Requirement Status** | **PASSED** | **PASSED** | **PASSED** |
+| Criterion | Case 1: Full Chain Success | Case 2: Intentional Partial Failure (State Injection) | Case 3: Downstream Failure Path (Real Data) | Case 4: RAG Module Regression Suite (Faizan) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Pipeline Run ID** | `c2f9a807-77ed-4d66-86c8-03b9ccfdff23` | `55354463-e2ba-4e20-915d-694582d26a88` | `cbb76ad2-c7e3-4eff-bdac-e8b29ef535b9` | `e28c6a52-a250-41f1-903c-ec43fb0903d3` |
+| **Tested Modalities** | Vision (CLIP) + RAG (Vector Doc) + Agent | Orchestration Poller + Database State Machine | Vision (CLIP real image `10003.jpg`) + Poller downstream fault recovery | RAG (`POST /api/v1/rag/process` & `/chat`) + Qdrant Knowledge Base |
+| **Terminal Status** | `agent_processing` / `agent_complete` decision | `rag_failed` | `rag_failed` | `completed` (`status: "completed"`, `grounded: null`) |
+| **Audit Trail Depth** | 9 discrete lifecycle events logged | 3 discrete lifecycle events logged | 5 discrete lifecycle events logged | 5 targeted test cases executed |
+| **Fault Recovery** | N/A (Nominal path handled thin RAG) | Graceful error handling; no service crash; clean audit trail | Graceful failure catch; atomic CAS claim; zero crashes; clean recovery | Clean 404 on missing extracted data; graceful refusal on unindexed queries |
+| **Reproducibility** | Full local commands & sample artifact documented | Full local commands & manual state-injection steps documented | Full local commands, test flag, and clean rollback documented | Swagger UI (`/docs`) & curl requests documented |
+| **Requirement Status** | **PASSED** | **PASSED** | **PASSED** | **PASSED** |
 
 ---
 
@@ -778,3 +778,68 @@ Remove the test-only lines from `backend/app/gateway/orchestrator_poller.py` and
   code); flag as a critical pre-production requirement — catalog product 
   documentation must be ingested into the RAG vector store before 
   generate_report can ever be demonstrated end-to-end.
+
+---
+
+## Case 4: RAG Module Regression Suite (Faizan)
+
+**Requirement:** Week 6, Day 1 Task 3 ("RAG/context verification") and Day 3 Task 3 ("Final RAG regression") — verify that Vision's extracted output reaches RAG in the agreed format, and that grounded answers, no-match/refusal behavior, source citations, and failure states all behave correctly.
+
+### 1. Metadata
+
+- **Date:** September 12, 2026
+- **Environment:** Local Development (Windows, Python 3.14, FastAPI/Uvicorn via `backend/app/gateway/main.py`, PostgreSQL on Supabase via `SHARED_DATABASE_URL`)
+- **Pipeline run used:** `e28c6a52-a250-41f1-903c-ec43fb0903d3` (real Vision output: `extracted_data_id = 58400ae1-5bb4-480f-ba59-7992e66f00d7`, product = "John Players Men Check Green Shirt")
+- **Evidence source:** Captured directly from Swagger UI (`/docs`) requests against the live gateway.
+
+### 2. Test Cases, Expected vs. Actual
+
+| # | Test Case | Request | Expected | Actual | Result |
+|---|---|---|---|---|---|
+| 1 | Valid `extracted_data_id`, no Qdrant document match | `POST /api/v1/rag/process` with real `pipeline_run_id`/`extracted_data_id`, `question: null` | `status: completed`, correct catalog citation, `grounded: null` (no real answer generated) | `status: "completed"`, citation for product `37779` correct, `grounded: null` | ✅ Pass |
+| 2 | Invalid `extracted_data_id` (guaranteed non-existent UUID) | Same `pipeline_run_id`, `extracted_data_id: 11111111-2222-3333-4444-555555555555` | Clean `404`, no server crash | `404 { "detail": "extracted_data_id not found" }` | ✅ Pass |
+| 3 | Q&A mode (question supplied instead of summarization) | Same run, `question: "What color is this product?"` | `status: completed`, no crash, answer generated or refused gracefully | `status: "completed"`, refusal answer (product not present in Qdrant knowledge base — correct behavior, not a hallucination) | ✅ Pass |
+| 4 | Standalone chat endpoint independent of pipeline data | `POST /api/v1/rag/chat`, `{"question": "hi", "history": []}` | Original solo-project behavior preserved (greeting detection, no document search triggered) | Conversational greeting response returned, `sources: []` | ✅ Pass |
+| 5 | `grounded` field correctness on no-answer cases | Re-examine responses from Tests 1 and 3 | `grounded` must be `null`, not `false`, when no groundedness check actually ran | Both responses returned `grounded: null` | ✅ Pass |
+
+### 3. Raw JSON Response Evidence (Verbatim)
+
+**Test 1 — Valid data, no document match:**
+```json
+{
+  "pipeline_run_id": "e28c6a52-a250-41f1-903c-ec43fb0903d3",
+  "rag_document_id": "ea1df200-2be3-4b39-9459-888bd4a05e4d",
+  "summary": "I couldn't find that information in the uploaded documents.",
+  "citations": [
+    {
+      "source_type": "catalog_item",
+      "source": "John Players Men Check Green Shirt",
+      "page_number": null,
+      "product_id": 37779,
+      "image_url": "/catalog-images/37779.jpg"
+    }
+  ],
+  "grounded": null,
+  "groundedness_score": null,
+  "status": "completed"
+}
+```
+
+**Test 2 — Invalid extracted_data_id:**
+```json
+{ "detail": "extracted_data_id not found" }
+```
+HTTP status: `404`
+
+**Test 4 — Standalone chat:**
+```json
+{
+  "answer": "Hi there! I'm ready to help you explore your documents. Upload a file (PDF, TXT, Markdown, or Word) or ask me a question about what's already in the knowledge base.",
+  "sources": [],
+  "retrieval_question": "hi"
+}
+```
+
+### 4. Known Dependency Note
+
+Vision's image-upload/search flow could not be exercised end-to-end during this session due to a missing FAISS catalog index file (`data/embeddings/clip_vit_b32/catalog.index` — see Case 1/2 above). This is a Vision-side data availability issue, not a RAG defect. All RAG test cases above were instead run directly against an existing, previously-verified `extracted_data` row, which is a valid and sufficient test path for RAG's own contract (RAG's only dependency on Vision is the shape of the `extracted_data.content` row, not Vision's live search functionality).

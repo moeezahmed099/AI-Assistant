@@ -4,6 +4,7 @@ import os
 import sys
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -90,27 +91,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+def get_allowed_origins() -> List[str]:
+    """Retrieve allowed CORS origins with production environment variable support."""
+    default_dev_origins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:3000",
+    ]
+    env_origins = os.getenv("ALLOWED_ORIGINS")
+    if env_origins:
+        parsed = [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+        if "*" in parsed:
+            logger.warning(
+                "Wildcard '*' in ALLOWED_ORIGINS is incompatible with allow_credentials=True. "
+                "Falling back to default development origins."
+            )
+            return default_dev_origins
+        app_env = os.getenv("APP_ENV", "development").lower()
+        if app_env != "production":
+            for o in default_dev_origins:
+                if o not in parsed:
+                    parsed.append(o)
+        return parsed
+
+    app_env = os.getenv("APP_ENV", "development").lower()
+    if app_env == "production":
+        logger.warning(
+            "APP_ENV is set to 'production' but ALLOWED_ORIGINS is not set. "
+            "Set ALLOWED_ORIGINS to your production frontend URL."
+        )
+    return default_dev_origins
+
+
 # Configure CORS for frontend access
 # Production: set ALLOWED_ORIGINS env var on Render to the deployed Vercel URL (e.g. https://your-app.vercel.app), comma-separated if multiple origins needed.
 # Browsers reject allow_origins=["*"] when allow_credentials=True.
-DEFAULT_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-]
-env_origins = os.getenv("ALLOWED_ORIGINS")
-allowed_origins = (
-    [origin.strip() for origin in env_origins.split(",") if origin.strip()]
-    if env_origins
-    else DEFAULT_ALLOWED_ORIGINS
-)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
