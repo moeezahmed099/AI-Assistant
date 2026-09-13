@@ -13,13 +13,15 @@ if str(AGENT_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(AGENT_BACKEND_DIR))
 
 # Ensure root paths are available for schema contracts
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
+# Project root must precede backend dir so top-level app/ (db, services) is not shadowed by backend/app/.
 BACKEND_DIR = Path(__file__).resolve().parents[3]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+if str(PROJECT_ROOT) in sys.path:
+    sys.path.remove(str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     from backend.app.gateway.database import SessionLocal

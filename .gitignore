@@ -32,7 +32,16 @@ data/images/*
 data/embeddings/
 artifacts/embeddings/
 artifacts/faiss/
+vision_44k_catalog_artifacts/
 *.zip
+
+# Scratch & temporary verification files
+check_artifacts.py
+check_db.py
+temp_catalog_extract
+test_15025.jpg
+verify_pipeline.py
+vision_verification_evidence.txt
 
 # Logs
 logs/

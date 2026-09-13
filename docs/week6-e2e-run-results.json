@@ -1,0 +1,273 @@
+{
+  "run_id": "07ebb1fb-ba5d-4365-b060-7fc156bf7583",
+  "events_streamed": [
+    {
+      "timestamp": "2026-09-12T15:55:17.617872+00:00",
+      "event_type": "catch_up",
+      "status": "created",
+      "message": "Connected to pipeline stream.",
+      "payload": {
+        "status": "created",
+        "created_at": "2026-09-12T15:55:11.890025+00:00",
+        "vision_result": null,
+        "rag_result": null,
+        "agent_result": null,
+        "events": [
+          {
+            "id": "c6839071-77d5-4764-81bd-24309ea8df71",
+            "module": "gateway",
+            "event": "created",
+            "message": "Pipeline run initialized.",
+            "payload": {
+              "user_id": "test-ws-stream-verification",
+              "metadata": {}
+            },
+            "created_at": "2026-09-12T15:55:11.890025+00:00"
+          }
+        ]
+      }
+    }
+  ],
+  "final_pipeline_state": {
+    "pipeline_run_id": "07ebb1fb-ba5d-4365-b060-7fc156bf7583",
+    "status": "agent_processing",
+    "created_at": "2026-09-12T15:55:11.890025Z",
+    "updated_at": "2026-09-12T15:56:30.423550Z",
+    "vision_result": {
+      "extracted_data_id": "ed180fe9-31e1-4697-9eee-5a86e9b58ac2",
+      "module": "vision",
+      "data_type": "visual_product_search_matches",
+      "content": {
+        "matches": [
+          {
+            "rank": 1,
+            "usage": "Sports",
+            "gender": "Women",
+            "season": "Fall",
+            "category": "Apparel",
+            "filename": "10003.jpg",
+            "image_url": "/catalog-images/10003.jpg",
+            "product_id": 10003,
+            "base_colour": "White",
+            "external_id": "10003",
+            "article_type": "Tshirts",
+            "sub_category": "Topwear",
+            "catalog_item_id": 28950,
+            "similarity_score": 1.0,
+            "product_display_name": "Nike Women As Nike Eleme White T-Shirt"
+          },
+          {
+            "rank": 2,
+            "usage": "Sports",
+            "gender": "Women",
+            "season": "Fall",
+            "category": "Apparel",
+            "filename": "10034.jpg",
+            "image_url": "/catalog-images/10034.jpg",
+            "product_id": 10034,
+            "base_colour": "Black",
+            "external_id": "10034",
+            "article_type": "Tshirts",
+            "sub_category": "Topwear",
+            "catalog_item_id": 31046,
+            "similarity_score": 0.7946,
+            "product_display_name": "Nike Women As Element Ja Black T-Shirt"
+          },
+          {
+            "rank": 3,
+            "usage": "Sports",
+            "gender": "Women",
+            "season": "Fall",
+            "category": "Apparel",
+            "filename": "10025.jpg",
+            "image_url": "/catalog-images/10025.jpg",
+            "product_id": 10025,
+            "base_colour": "Pink",
+            "external_id": "10025",
+            "article_type": "Tshirts",
+            "sub_category": "Topwear",
+            "catalog_item_id": 27549,
+            "similarity_score": 0.791,
+            "product_display_name": "Nike Women As Element Ja Pink T-Shirt"
+          },
+          {
+            "rank": 4,
+            "usage": "Sports",
+            "gender": "Women",
+            "season": "Fall",
+            "category": "Apparel",
+            "filename": "22581.jpg",
+            "image_url": "/catalog-images/22581.jpg",
+            "product_id": 22581,
+            "base_colour": "Purple",
+            "external_id": "22581",
+            "article_type": "Sweatshirts",
+            "sub_category": "Topwear",
+            "catalog_item_id": 41946,
+            "similarity_score": 0.7697,
+            "product_display_name": "Nike Women Solid Purple Sweatshirt"
+          },
+          {
+            "rank": 5,
+            "usage": "Sports",
+            "gender": "Women",
+            "season": "Fall",
+            "category": "Apparel",
+            "filename": "2265.jpg",
+            "image_url": "/catalog-images/2265.jpg",
+            "product_id": 2265,
+            "base_colour": "Orange",
+            "external_id": "2265",
+            "article_type": "Tshirts",
+            "sub_category": "Topwear",
+            "catalog_item_id": 43136,
+            "similarity_score": 0.7374,
+            "product_display_name": "Nike Womens NIKE MILER SS TOP T-shirt"
+          }
+        ],
+        "primary_match": {
+          "rank": 1,
+          "usage": "Sports",
+          "gender": "Women",
+          "season": "Fall",
+          "category": "Apparel",
+          "filename": "10003.jpg",
+          "image_url": "/catalog-images/10003.jpg",
+          "product_id": 10003,
+          "base_colour": "White",
+          "external_id": "10003",
+          "article_type": "Tshirts",
+          "sub_category": "Topwear",
+          "catalog_item_id": 28950,
+          "similarity_score": 1.0,
+          "product_display_name": "Nike Women As Nike Eleme White T-Shirt"
+        }
+      },
+      "model": "OpenCLIP_ViT_B_32",
+      "confidence": 1.0,
+      "count": 1
+    },
+    "rag_result": {
+      "rag_document_id": "3b498e98-b427-485b-a2c7-e065b287fd21",
+      "content": "I couldn't find that information in the uploaded documents.",
+      "metadata": {
+        "status": "completed",
+        "grounded": null,
+        "citations": [
+          {
+            "source": "Nike Women As Nike Eleme White T-Shirt",
+            "image_url": "/catalog-images/10003.jpg",
+            "product_id": 10003,
+            "page_number": null,
+            "source_type": "catalog_item"
+          }
+        ],
+        "groundedness_score": null
+      },
+      "count": 1
+    },
+    "agent_result": {
+      "agent_run_id": "1c39a0bd-6bd5-45af-933b-1b8e25f9ebdb",
+      "status": "in_progress",
+      "decision": "search_more_context",
+      "reason": "Confident Vision match, but RAG context is not grounded or has thin citations.",
+      "created_at": "2026-09-12T15:56:28.865521+00:00",
+      "completed_at": null
+    },
+    "events": [
+      {
+        "id": "c6839071-77d5-4764-81bd-24309ea8df71",
+        "module": "gateway",
+        "event": "created",
+        "message": "Pipeline run initialized.",
+        "payload": {
+          "user_id": "test-ws-stream-verification",
+          "metadata": {}
+        },
+        "created_at": "2026-09-12T15:55:11.890025+00:00"
+      },
+      {
+        "id": "832aa631-d341-4484-86c3-0b1142e56f9c",
+        "module": "vision",
+        "event": "started",
+        "message": "Visual search started.",
+        "payload": null,
+        "created_at": "2026-09-12T15:55:28.530003+00:00"
+      },
+      {
+        "id": "27c696c2-d36c-40b4-b8a1-fb575796a037",
+        "module": "vision",
+        "event": "completed",
+        "message": "Visual search completed.",
+        "payload": null,
+        "created_at": "2026-09-12T15:55:47.467228+00:00"
+      },
+      {
+        "id": "c05af12b-d71f-463c-a680-91fb185cde00",
+        "module": "rag",
+        "event": "rag_processing",
+        "message": "Gateway poller claimed run for rag processing.",
+        "payload": {
+          "triggered_by": "gateway_poller",
+          "previous_status": "vision_complete"
+        },
+        "created_at": "2026-09-12T15:55:57.701808+00:00"
+      },
+      {
+        "id": "746d3d94-0dc0-414c-9bfb-2ef61d4e7cac",
+        "module": "rag",
+        "event": "rag_started",
+        "message": "Module rag rag_started",
+        "payload": {
+          "extracted_data_id": "ed180fe9-31e1-4697-9eee-5a86e9b58ac2"
+        },
+        "created_at": "2026-09-12T15:56:04.886377+00:00"
+      },
+      {
+        "id": "ad8a05db-c386-49af-84e6-57631cbd4ba4",
+        "module": "rag",
+        "event": "rag_completed",
+        "message": "Module rag rag_completed",
+        "payload": {
+          "grounded": null,
+          "rag_document_id": "3b498e98-b427-485b-a2c7-e065b287fd21"
+        },
+        "created_at": "2026-09-12T15:56:14.363170+00:00"
+      },
+      {
+        "id": "0ad4e960-a747-4b77-a974-d20c8b992c84",
+        "module": "agent",
+        "event": "agent_processing",
+        "message": "Gateway poller claimed run for agent processing.",
+        "payload": {
+          "triggered_by": "gateway_poller",
+          "previous_status": "rag_complete"
+        },
+        "created_at": "2026-09-12T15:56:24.237951+00:00"
+      },
+      {
+        "id": "0a011199-f2ff-4356-be83-ea21c4f961e6",
+        "module": "agent",
+        "event": "agent_processing",
+        "message": "Agent processing initiated.",
+        "payload": {
+          "pipeline_run_id": "07ebb1fb-ba5d-4365-b060-7fc156bf7583"
+        },
+        "created_at": "2026-09-12T15:56:26.227522+00:00"
+      },
+      {
+        "id": "15f325d6-03a3-4c9a-aa3d-282a8d7a96dd",
+        "module": "agent",
+        "event": "agent_processing",
+        "message": "Agent decision reached: search_more_context. Confident Vision match, but RAG context is not grounded or has thin citations.",
+        "payload": {
+          "reason": "Confident Vision match, but RAG context is not grounded or has thin citations.",
+          "status": "in_progress",
+          "decision": "search_more_context",
+          "agent_run_id": "1c39a0bd-6bd5-45af-933b-1b8e25f9ebdb"
+        },
+        "created_at": "2026-09-12T15:56:30.423550+00:00"
+      }
+    ]
+  }
+}

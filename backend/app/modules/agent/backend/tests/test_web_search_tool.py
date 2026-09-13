@@ -160,8 +160,9 @@ def test_web_search_rate_limit_error(mock_post, web_search_tool, monkeypatch):
 
 
 def test_web_search_missing_api_key(web_search_tool, monkeypatch):
-    """Test missing SEARCH_API_KEY environment variable returns graceful ToolResult."""
+    """Test missing SEARCH_API_KEY and TAVILY_API_KEY returns graceful ToolResult."""
     monkeypatch.delenv("SEARCH_API_KEY", raising=False)
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
 
     result = web_search_tool.execute({"query": "python"})
 
@@ -169,3 +170,17 @@ def test_web_search_missing_api_key(web_search_tool, monkeypatch):
     assert result.success is False
     assert result.data is None
     assert "missing" in result.error_message.lower()
+
+
+@patch("agent.tools.web_search_tool.httpx.post")
+def test_web_search_fallback_to_tavily_api_key(mock_post, web_search_tool, monkeypatch):
+    """Test that TAVILY_API_KEY is accepted when SEARCH_API_KEY is unset."""
+    monkeypatch.delenv("SEARCH_API_KEY", raising=False)
+    monkeypatch.setenv("TAVILY_API_KEY", "fallback-tavily-key")
+    mock_response = MagicMock(status_code=200)
+    mock_response.json.return_value = {"results": [{"title": "T", "url": "https://t.com", "content": "C"}]}
+    mock_post.return_value = mock_response
+
+    result = web_search_tool.execute({"query": "fallback test"})
+    assert result.success is True
+    assert mock_post.call_args[1]["json"]["api_key"] == "fallback-tavily-key"

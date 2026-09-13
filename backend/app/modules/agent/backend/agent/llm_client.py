@@ -30,7 +30,7 @@ class LLMClient:
         retry_delay: float = 1.0,
     ):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+        self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
         self.retry_delay = retry_delay
 
     def generate(

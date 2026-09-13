@@ -106,7 +106,11 @@ def get_allowed_origins() -> List[str]:
     if env_origins:
         parsed = [origin.strip() for origin in env_origins.split(",") if origin.strip()]
         if "*" in parsed:
-            return ["*"]
+            logger.warning(
+                "Wildcard '*' in ALLOWED_ORIGINS is incompatible with allow_credentials=True. "
+                "Falling back to default development origins."
+            )
+            return default_dev_origins
         app_env = os.getenv("APP_ENV", "development").lower()
         if app_env != "production":
             for o in default_dev_origins:
@@ -124,6 +128,8 @@ def get_allowed_origins() -> List[str]:
 
 
 # Configure CORS for frontend access
+# Production: set ALLOWED_ORIGINS env var on Render to the deployed Vercel URL (e.g. https://your-app.vercel.app), comma-separated if multiple origins needed.
+# Browsers reject allow_origins=["*"] when allow_credentials=True.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),

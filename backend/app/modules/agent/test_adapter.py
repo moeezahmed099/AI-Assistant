@@ -7,18 +7,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Add project root and backend paths to sys.path
+# Add project root and backend paths to sys.path.
+# Project root must precede backend dir so top-level app/ (db, services) is not shadowed by backend/app/.
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 BACKEND_DIR = Path(__file__).resolve().parents[3]
+MODULE_DIR = Path(__file__).resolve().parent
+
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+if str(PROJECT_ROOT) in sys.path:
+    sys.path.remove(str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT))
 
-MODULE_DIR = Path(__file__).resolve().parent
 if str(MODULE_DIR) not in sys.path:
-    sys.path.insert(0, str(MODULE_DIR))
+    sys.path.insert(2, str(MODULE_DIR))
 
 try:
     from backend.app.schemas.contracts import AgentDecision
