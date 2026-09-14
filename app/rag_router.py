@@ -11,6 +11,8 @@ from app.modules.rag.writes import (
     update_pipeline_status,
 )
 from app.services.rag import ask_rag
+from app.llm.gemini import generate_answer
+from app.services.hallucination_check import check_groundedness
 
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
@@ -39,6 +41,19 @@ def chat(request: ChatRequest):
 # writes to the shared rag_documents / chat_history / module_events
 # tables, and updates pipeline_runs.status so the gateway can detect
 # completion.
+#
+# FIX: this endpoint previously converted Vision's match into
+# `context_text` via vision_to_context(), then IGNORED it and instead
+# called ask_rag() — which vector-searches the uploaded-document
+# knowledge base in Qdrant. Vision's catalog match has nothing to do
+# with that knowledge base, so the search almost always missed and
+# fell back to "I couldn't find that information...", regardless of
+# how confident the Vision match was.
+#
+# Now the Vision-derived context_text is used directly to generate a
+# grounded answer (generate_answer + check_groundedness — the same
+# calls ask_rag() makes internally), instead of routing through the
+# document-only retrieval pipeline.
 # ======================================================================
 
 class RagProcessRequest(BaseModel):
@@ -97,7 +112,9 @@ def process(request: RagProcessRequest):
         }
 
     # ----------------------------------------------------
-    # 3. Run existing RAG pipeline
+    # 3. Generate an answer grounded in Vision's context directly
+    #    (NOT via ask_rag — that searches the document knowledge
+    #    base, which has nothing to do with the Vision catalog match)
     # ----------------------------------------------------
 
     question = request.question or "Summarize this product record."
@@ -106,7 +123,8 @@ def process(request: RagProcessRequest):
         insert_chat_history(request.pipeline_run_id, "user", request.question)
 
     try:
-        result = ask_rag(question, history=[])
+        answer = generate_answer(question, context_text)
+        groundedness = check_groundedness(answer, context_text)
     except Exception as error:
         insert_module_event(
             request.pipeline_run_id,
@@ -135,23 +153,10 @@ def process(request: RagProcessRequest):
         }
 
     # ----------------------------------------------------
-    # 4. Build citations (document + catalog_item)
+    # 4. Build citations — grounded in the Vision match
     # ----------------------------------------------------
 
-    citations = [
-        {
-            "source_type": "document",
-            "source": s.get("source"),
-            "page_number": s.get("page_number"),
-            "product_id": None,
-            "image_url": None,
-        }
-        for s in result.get("sources", [])
-    ]
-
-    citations.append(build_vision_citation(vision_data))
-
-    groundedness = result.get("groundedness")
+    citations = [build_vision_citation(vision_data)]
 
     if groundedness is None:
         grounded = None
@@ -161,7 +166,7 @@ def process(request: RagProcessRequest):
         groundedness_score = groundedness.get("groundedness_score")
 
     if request.question:
-        insert_chat_history(request.pipeline_run_id, "bot", result.get("answer", ""))
+        insert_chat_history(request.pipeline_run_id, "bot", answer)
 
     # ----------------------------------------------------
     # 5. Persist + respond
@@ -170,7 +175,7 @@ def process(request: RagProcessRequest):
     rag_document_id = insert_rag_document(
         pipeline_run_id=request.pipeline_run_id,
         extracted_data_id=request.extracted_data_id,
-        summary=result.get("answer", ""),
+        summary=answer,
         citations=citations,
         grounded=grounded,
         groundedness_score=groundedness_score,
@@ -188,7 +193,7 @@ def process(request: RagProcessRequest):
     return {
         "pipeline_run_id": request.pipeline_run_id,
         "rag_document_id": rag_document_id,
-        "summary": result.get("answer", ""),
+        "summary": answer,
         "citations": citations,
         "grounded": grounded,
         "groundedness_score": groundedness_score,
