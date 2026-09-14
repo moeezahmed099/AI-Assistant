@@ -208,47 +208,260 @@ To ensure zero out-of-memory (OOM) crashes on cloud free-tier hosting (specifica
 
 ## 7. Setup & Local Installation
 
-### Prerequisites
-* Python 3.11+ (tested on Python 3.13)
-* Remote or local PostgreSQL database
-* Qdrant Cloud Cluster + Gemini API Key + Tavily Search API Key
+This section provides comprehensive instructions for running the complete full-stack Unified AI Assistant on your local machine (Windows, macOS, or Linux).
 
-### Installation Steps
+---
 
-1. **Clone the Repository:**
+### 7.1. Prerequisites & System Requirements
+
+Ensure you have the following installed on your system before proceeding:
+* **Python:** Version `3.11` or higher (tested and verified on Python `3.11` to `3.13`).
+* **Node.js:** Version `18.x` or higher (LTS recommended) along with `npm` `9.x+`.
+* **Git:** For cloning and updating the repository.
+* **Database Options:**
+  * **Option A (Zero-Config / Local Fallback):** If no PostgreSQL connection is configured, the gateway **automatically falls back to a local SQLite database (`ai_assistant.db`)**. You can run the entire system offline without spinning up a database server!
+  * **Option B (Production Supabase / PostgreSQL):** A PostgreSQL instance or free Supabase project if using shared cloud persistence.
+* **API Keys (Optional for local visual search, required for LLM synthesis & web search):**
+  * Google Gemini API Key (`GEMINI_API_KEY`) for RAG synthesis.
+  * Tavily Search API Key (`SEARCH_API_KEY` or `TAVILY_API_KEY`) for secondary agent research.
+  * Qdrant Cloud URL & API Key (for dense RAG vector search).
+
+---
+
+### 7.2. Fast-Track Quick Start (3 Steps)
+
+If your environment is already set up with Python and Node.js:
+
+```bash
+# 1. Clone & Enter Project
+git clone https://github.com/moeezahmed099/AI-Assistant.git
+cd AI-Assistant/AI-Assistant
+
+# 2. Start Backend (Terminal 1)
+python -m venv venv
+# Windows: .\venv\Scripts\activate | macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python -m uvicorn backend.app.gateway.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 3. Start Frontend (Terminal 2)
+cd frontend
+npm install
+npm run dev
+```
+
+Open **`http://localhost:5173/dashboard`** in your browser to launch the Unified AI Assistant.
+
+---
+
+### 7.3. Detailed Step-by-Step Installation
+
+#### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/moeezahmed099/AI-Assistant.git
+cd AI-Assistant/AI-Assistant
+```
+
+#### Step 2: Configure Environment Variables
+
+Create a `.env` file in the project root (or copy `.env.example`):
+
+```bash
+# On Windows (PowerShell):
+Copy-Item .env.example .env
+
+# On macOS / Linux:
+cp .env.example .env
+```
+
+Open `.env` in your text editor and configure your credentials:
+
+```env
+# ============================================================================
+# Database Configuration
+# NOTE: If DATABASE_URL is left empty or commented out, the system will
+# automatically use local SQLite (ai_assistant.db). Zero database setup needed!
+# ============================================================================
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+SHARED_DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+CATALOG_DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+
+# ============================================================================
+# External AI & API Keys
+# ============================================================================
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.5-flash-lite
+SEARCH_API_KEY=your_tavily_search_api_key_here
+
+# ============================================================================
+# RAG Knowledge Base (Qdrant Vector Cloud)
+# ============================================================================
+QDRANT_URL=https://your-cluster-id.region.qdrant.tech:6333
+QDRANT_API_KEY=your_qdrant_api_key_here
+
+# Gateway Server Port
+PORT=8000
+```
+
+> [!TIP]
+> Also copy or link `.env` to `backend/.env` if running standalone module scripts:
+> ```bash
+> # Windows:
+> Copy-Item .env backend/.env
+> # Linux/macOS:
+> cp .env backend/.env
+> ```
+
+#### Step 3: Set Up Python Backend & Download Artifacts
+
+1. Create and activate a Python virtual environment:
    ```bash
-   git clone https://github.com/moeezahmed099/AI-Assistant.git
-   cd AI-Assistant/AI-Assistant
+   # Create virtual environment
+   python -m venv venv
+
+   # Activate on Windows (PowerShell):
+   .\venv\Scripts\activate
+   # (If execution is restricted, run: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)
+
+   # Activate on macOS / Linux:
+   source venv/bin/activate
    ```
 
-2. **Set Up Python Virtual Environment:**
+2. Install backend dependencies:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-3. **Configure Environment Variables (`backend/.env`):**
-   ```env
-   DATABASE_URL=postgresql://postgres.xxx:xxx@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
-   SHARED_DATABASE_URL=postgresql://postgres.xxx:xxx@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
-   CATALOG_DATABASE_URL=postgresql://postgres.xxx:xxx@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
-   GEMINI_API_KEY=your_gemini_api_key
-   GEMINI_MODEL=gemini-3.5-flash-lite
-   SEARCH_API_KEY=your_tavily_search_api_key
-   QDRANT_URL=your_qdrant_cloud_url
-   QDRANT_API_KEY=your_qdrant_api_key
-   PORT=8000
-   ```
+3. Ensure FAISS Search Index & ONNX Models are present:
+   * The repository already includes the INT8 quantized ONNX vision model (`artifacts/onnx/clip_vit_b32_vision_int8.onnx`).
+   * If `artifacts/faiss/clip.index` is not present locally, download it automatically with:
+     ```bash
+     python scripts/download_faiss.py
+     ```
 
-4. **Launch the Unified Backend Service:**
+4. Launch the Unified Backend Gateway:
    ```bash
-   python -m uvicorn backend.app.gateway.main:app --host 0.0.0.0 --port 8000
+   python -m uvicorn backend.app.gateway.main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+   * The backend will start on **`http://127.0.0.1:8000`**.
+   * Health endpoint: `http://127.0.0.1:8000/health`
+   * Interactive Swagger Documentation: `http://127.0.0.1:8000/docs`
+
+#### Step 4: Set Up and Launch Frontend
+
+Open a second terminal window:
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd AI-Assistant/AI-Assistant/frontend
    ```
 
-5. **Access Interactive API Documentation:**
-   * Swagger UI: `http://localhost:8000/docs`
-   * OpenAPI Specification: `http://localhost:8000/openapi.json`
+2. Install frontend dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+   * The development server will start on **`http://localhost:5173`** (or `http://127.0.0.1:5173`).
+   * By default, the frontend automatically proxies API calls to `http://127.0.0.1:8000`. If running the backend on a different port, set `VITE_API_BASE_URL=http://your-host:port` in `frontend/.env`.
+
+---
+
+### 7.4. Interactive Dashboard User Guide
+
+Once both servers are running, navigate to:
+👉 **`http://localhost:5173/dashboard`** (or click **"Dashboard"** in the top navigation bar).
+
+The unified dashboard provides full interactive control over the 3-tier pipeline:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       UNIFIED AI ASSISTANT DASHBOARD                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [ Intake Section: Drag & Drop Query Image or Click Quick-Select Presets ]  │
+│  Presets: [ Nike T-Shirt ] [ Puma Pants ] [ Fastrack Watch ] [ Navy Polo ]  │
+│  Model Selector: (•) OpenCLIP (ViT-B/32)  ( ) ResNet-50                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Pipeline Tracker: [ 1. Vision: Done ] -> [ 2. RAG: Done ] -> [ 3. Agent ]   │
+│  Current Run: e2e-run-9182  | Status: agent_complete | [ Advance Step > ]   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [👁️ Vision Results]  [🧠 RAG Intelligence]  [🤖 Agent Actions]  [📄 Final Report]│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Intake & Dropzone**:
+   * **Drag & Drop** any image file (`.jpg`, `.png`, `.webp`) onto the upload zone, or click **"Browse Files"**.
+   * Or click any of the **4 Quick-Select Presets** (*Nike T-Shirt*, *Puma Track Pants*, *Fastrack Watch*, *Navy Polo*) for instant, zero-upload testing.
+   * Click **"Run Full Pipeline"** to seed a new pipeline run ID and trigger the end-to-end flow.
+
+2. **Stage Progression & Stepper**:
+   * Observe real-time progress indicators: `created` $\to$ `vision_complete` $\to$ `rag_complete` $\to$ `agent_complete`.
+   * Use manual **"Advance to Next Stage"** buttons to step through the pipeline incrementally if desired.
+   * Switch between past runs using the **Pipeline Run Switcher** dropdown.
+
+3. **Multi-Tab Inspection**:
+   * **👁️ Vision Results Tab**: Displays the top-1 primary catalog match along with similarity score, catalog product details, and the top-10 candidate match gallery.
+   * **🧠 RAG Intelligence Tab**: Shows the grounded knowledge summary, groundedness verification badge (with confidence score), and verified catalog citations. Includes a standalone question-answering box.
+   * **🤖 Agent Actions Tab**: Displays the deterministic decision matrix evaluation, policy rationale, and tool execution traces.
+   * **📄 Final Executive Report Tab**: Consolidates findings from all three stages into a structured, executive-ready dossier with:
+     * **Download Markdown (`.md`)**: Downloads a formatted report file directly to your machine.
+     * **Copy to Clipboard**: Copies the full GitHub-flavored markdown report.
+     * **Print / Save as PDF**: Formatted print view for instant PDF export.
+
+---
+
+### 7.5. Automated Verification & Smoke Tests
+
+Verify that your local installation is functioning properly with these quick tests:
+
+1. **Gateway Health Check:**
+   ```bash
+   curl http://127.0.0.1:8000/health
+   # Expected response: {"status":"healthy","version":"1.0.0"}
+   ```
+
+2. **Initialize a Pipeline Run:**
+   ```bash
+   curl -X POST http://127.0.0.1:8000/api/v1/pipeline/run
+   # Expected response: {"pipeline_run_id":"<uuid>","status":"created",...}
+   ```
+
+3. **Inspect Active Pipeline Runs:**
+   ```bash
+   curl http://127.0.0.1:8000/api/v1/pipeline/runs
+   ```
+
+4. **Run Backend Test Suites:**
+   ```bash
+   pytest backend/app/gateway/tests/
+   ```
+
+5. **Verify Frontend Production Build:**
+   ```bash
+   cd frontend
+   npm run build
+   # Should transform modules and generate dist/ assets with zero errors
+   ```
+
+---
+
+### 7.6. Troubleshooting & Common Pitfalls
+
+| Issue | Likely Cause | Solution |
+| :--- | :--- | :--- |
+| **`scripts execution is disabled on this system`** | Windows PowerShell security policy | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in your PowerShell window, then reactivate the venv. |
+| **`Port 8000 or 5173 is already in use`** | A lingering server instance is active | Identify and stop the process: `netstat -ano \| findstr :8000` followed by `taskkill /F /PID <PID>`, or start on a different port: `--port 8001`. |
+| **`clip.index not found`** | FAISS index has not been fetched | Run `python scripts/download_faiss.py` to automatically download the 512-dim index into `artifacts/faiss/clip.index`. |
+| **`Database connection timeout or SSL error`** | Supabase connection pooler paused or unreachable | Leave `DATABASE_URL` blank in `.env` — the gateway will automatically fall back to local SQLite (`ai_assistant.db`) without any external dependencies. |
+| **`Cross-Origin Request Blocked (CORS)`** | Frontend origin mismatch | The backend gateway is pre-configured to accept `http://localhost:5173` and `http://127.0.0.1:5173`. Ensure your browser URL matches one of these origins. |
+| **`Out of Memory (OOM) on Free Tier`** | Running legacy PyTorch models | The production codebase uses the INT8 quantized ONNX runtime (`clip_vit_b32_vision_int8.onnx`), requiring only ~278 MB peak RAM (comfortably below Render's 512 MB ceiling). |
+
+> [!NOTE]
+> **Deployment Status:** Cloud deployment to Render is currently in progress. All team members, supervisors, and evaluators can run the full system locally following the steps above.
 
 ---
 
