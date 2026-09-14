@@ -1,15 +1,68 @@
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python bytecode & virtual environments
+.venv/
 __pycache__/
 *.py[cod]
-*$py.class
-.env
-.pytest_cache/
-.coverage
-htmlcov/
-*.sqlite3
+*.pyc
+
+# Node / Frontend build artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
+# Database files
 *.db
 *.sqlite
+*.sqlite3
+data/catalog.db
 
-frontend/node_modules/
+# Large dataset raw images (do not commit 44k+ raw image files)
+data/images/
+data/images/*
+
+# Large binary archives and uncompressed ONNX models (>100MB)
+vision_44k_catalog_artifacts.zip
+vision_44k_catalog_artifacts/
+*.zip
+
+# Generated vector embeddings, weights, & checkpoints
+data/embeddings/
+artifacts/embeddings/
+artifacts/checkpoints/
+artifacts/faiss/
+artifacts/onnx/
+*.onnx
+*.npy
+*.index
+
+# Scratch & temporary verification files
+check_artifacts.py
+check_db.py
+temp_catalog_extract
+test_15025.jpg
+verify_pipeline.py
+vision_verification_evidence.txt
+.vision_test_deps/
+.preflight_python_deps/
+
+# Logs
+logs/
+*.log
+*.err.log
+
+# Operating system / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+.pnpm-store/
 frontend/.vite/
-
-gateway-8000.log

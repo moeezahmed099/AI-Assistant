@@ -1,0 +1,170 @@
+{
+  "startup": {
+    "startup_time_sec": 25.759944915771484,
+    "startup_rss_mb": 134.39453125,
+    "peak_startup_rss_mb": 134.125,
+    "avg_startup_cpu_pct": 58.027272727272724,
+    "alive": true
+  },
+  "health_endpoints": [
+    [
+      "GET",
+      "http://127.0.0.1:8000/",
+      404,
+      4.461765289306641,
+      "{\"detail\":\"Not Found\"}",
+      "STATUS 404"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/health",
+      200,
+      4.178047180175781,
+      "{\"status\":\"healthy\",\"service\":\"AI-Assistant Gateway\",\"version\":\"1.0.0\"}",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/api/v1/health",
+      200,
+      3.5009384155273438,
+      "{\"status\":\"healthy\",\"service\":\"AI-Assistant Gateway\",\"version\":\"1.0.0\"}",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/api/health",
+      200,
+      2810.1634979248047,
+      "{\"status\":\"ok\",\"database\":\"postgresql\",\"catalog_count\":44119,\"model\":\"OpenCLIP_ViT_B_32\",\"embedding_dimension\":512}",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/api/catalog/categories",
+      200,
+      3321.258783340454,
+      "{\"total_categories\":8,\"categories\":[{\"category_name\":\"Tshirts\",\"master_category\":\"Apparel\",\"item_count\":7022,\"sample_fil",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/catalog/categories",
+      200,
+      2819.1797733306885,
+      "{\"total_categories\":8,\"categories\":[{\"category_name\":\"Tshirts\",\"master_category\":\"Apparel\",\"item_count\":7022,\"sample_fil",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/catalog-images/10003.jpg",
+      200,
+      48.45237731933594,
+      "\ufffd\ufffd\ufffd\ufffd\u0000\u0010JFIF\u0000\u0001\u0001\u0001\u0000H\u0000H\u0000\u0000\ufffd\ufffd\u000eFPhotoshop 3.0\u00008BIM\u0004%\u0000\u0000\u0000\u0000\u0000\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u00008BIM\u0003\ufffd\u0000\u0000\u0000\u0000\u0000\u0010\u0000H\u0000\u0000\u0000\u0001\u0000\u0001\u0000H\u0000\u0000\u0000\u0001\u0000\u00018BIM\u0004&\u0000\u0000\u0000\u0000\u0000\u000e\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000?\ufffd\u0000\u0000",
+      "PASS"
+    ],
+    [
+      "GET",
+      "http://127.0.0.1:8000/api/auth/demo",
+      0,
+      10001.549482345581,
+      "timed out",
+      "FAIL"
+    ]
+  ],
+  "memory_stages": {
+    "1. Python process start": 47.58984375,
+    "2. Application import": 135.69921875,
+    "3. Server ready": 134.39453125,
+    "4. Health check": 135.05859375,
+    "5. Before AI request": 135.05859375,
+    "6. After RAG request": 136.453125,
+    "7. Before visual search": 136.453125,
+    "8. Model loaded": 1235.8515625,
+    "9. After visual search": 1235.8515625,
+    "10. Peak memory": 1235.8515625
+  },
+  "peak_overall_rss_mb": 1238.91015625,
+  "search_passed": true,
+  "top_result": {
+    "rank": 1,
+    "catalog_item_id": 28950,
+    "product_id": 10003,
+    "external_id": "10003",
+    "filename": "10003.jpg",
+    "product_display_name": "Nike Women As Nike Eleme White T-Shirt",
+    "category": "Apparel",
+    "sub_category": "Topwear",
+    "article_type": "Tshirts",
+    "base_colour": "White",
+    "gender": "Women",
+    "season": "Fall",
+    "usage": "Sports",
+    "image_url": "/catalog-images/10003.jpg",
+    "similarity_score": 1.0
+  },
+  "concurrency": {
+    "Health_1": [
+      1,
+      1,
+      1286.8092060089111,
+      1237.7734375
+    ],
+    "Health_2": [
+      2,
+      2,
+      1938.4715557098389,
+      1237.9375
+    ],
+    "Health_5": [
+      5,
+      5,
+      2665.4608249664307,
+      1238.3125
+    ],
+    "Search_1": [
+      1,
+      1,
+      5204.551458358765,
+      1237.98046875
+    ],
+    "Search_2": [
+      2,
+      2,
+      8203.287601470947,
+      1238.91015625
+    ]
+  },
+  "server_logs_sample": [
+    "[STDERR] D:\\Moeez Ahmed\\BS Artificial Intelligence\\Internship\\Phebsoft\\AI-Assistant\\AI-Assistant\\backend\\app\\modules\\agent\\backend\\agent\\llm_client.py:6: FutureWarning:",
+    "[STDERR] ",
+    "[STDERR] All support for the `google.generativeai` package has ended. It will no longer be receiving",
+    "[STDERR] updates or bug fixes. Please switch to the `google.genai` package as soon as possible.",
+    "[STDERR] See README for more details:",
+    "[STDERR] ",
+    "[STDERR] https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md",
+    "[STDERR] ",
+    "[STDERR] import google.generativeai as genai",
+    "[STDERR] INFO:     Started server process [37760]",
+    "[STDERR] INFO:     Waiting for application startup.",
+    "[STDERR] 2026-09-14 01:09:21,828 [INFO] gateway: Initializing Gateway database tables...",
+    "[STDERR] 2026-09-14 01:09:28,992 [INFO] gateway: Gateway database initialized successfully.",
+    "[STDERR] 2026-09-14 01:09:28,992 [INFO] gateway: Gateway orchestration poller started; interval=3s.",
+    "[STDERR] INFO:     Application startup complete.",
+    "[STDERR] INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)",
+    "[STDOUT] [database] Loaded environment variables from 'D:\\Moeez Ahmed\\BS Artificial Intelligence\\Internship\\Phebsoft\\AI-Assistant\\AI-Assistant\\backend\\.env' (found=True).",
+    "[STDOUT] [database] Database engine initialized for PostgreSQL/remote database.",
+    "[STDOUT] INFO:     127.0.0.1:56947 - \"GET /health HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET / HTTP/1.1\" 404 Not Found",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /health HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /api/v1/health HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /api/health HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /api/catalog/categories HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /catalog/categories HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /catalog-images/10003.jpg HTTP/1.1\" 200 OK",
+    "[STDOUT] INFO:     127.0.0.1:56948 - \"GET /api/auth/demo HTTP/1.1\" 200 OK",
+    "[STDERR] 2026-09-14 01:09:53,977 [INFO] backend.app.gateway.service: Created pipeline_run_id=e1bb8c18-cffe-459f-849a-d4c6eb19dad6 with status=created",
+    "[STDOUT] INFO:     127.0.0.1:55040 - \"POST /api/v1/pipeline/run HTTP/1.1\" 201 Created",
+    "[STDOUT] INFO:     127.0.0.1:55040 - \"GET /api/v1/pipeline/run/e1bb8c18-cffe-459f-849a-d4c6eb19dad6 HTTP/1.1\" 200 OK"
+  ]
+}

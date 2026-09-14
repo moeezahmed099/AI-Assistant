@@ -1,66 +1,120 @@
-"""Service for generating normalized image embeddings using OpenCLIP."""
+"""Service for generating normalized image embeddings using ONNX Runtime.
 
+Optimized for sub-300MB peak memory footprint to run smoothly within
+restricted environments (e.g. Render 512MB RAM free tier) with zero PyTorch runtime.
+"""
+
+from os import getenv
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional, Tuple, Union
+from typing import Any, ClassVar, Dict, Optional, Union
 import numpy as np
-import open_clip
+import onnxruntime as ort
 from PIL import Image
-import torch
 
-MODEL_NAME = "ViT-B-32"
-PRETRAINED_WEIGHTS = "laion2b_s34b_b79k"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Default ONNX model artifacts (ordered by memory efficiency and catalog compatibility)
+DEFAULT_ONNX_CANDIDATES = [
+    PROJECT_ROOT / "artifacts" / "onnx" / "clip_vit_b32_vision_int8.onnx",
+    PROJECT_ROOT / "artifacts" / "onnx" / "clip_vit_b32_vision.onnx",
+    PROJECT_ROOT / "artifacts" / "onnx" / "mobileclip_s1_vision.onnx",
+]
+
 EMBEDDING_DIMENSION = 512
+
+# Standard CLIP normalization constants
+CLIP_MEAN = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
+CLIP_STD = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
 
 
 class EmbeddingService:
-    """Service for generating normalized image embeddings with OpenCLIP."""
+    """Service for generating normalized 512-dim image embeddings via ONNX Runtime."""
 
-    _model_cache: ClassVar[Dict[Tuple[str, str, torch.device], Tuple[torch.nn.Module, Any]]] = {}
+    _session_cache: ClassVar[Dict[str, ort.InferenceSession]] = {}
 
     def __init__(
         self,
-        model_name: str = MODEL_NAME,
-        pretrained: str = PRETRAINED_WEIGHTS,
-        device: Optional[Union[str, torch.device]] = None,
+        model_path: Optional[Union[str, Path]] = None,
+        model_name: Optional[str] = None,
+        pretrained: Optional[str] = None,
+        device: Optional[Any] = None,
     ) -> None:
-        """Initialize the EmbeddingService and load model into memory once.
+        """Initialize the EmbeddingService with an ONNX model.
 
         Args:
-            model_name: OpenCLIP model architecture name.
-            pretrained: Pretrained dataset weights identifier.
-            device: Execution device ('cuda', 'cpu', or torch.device). Auto-selects CUDA if available.
+            model_path: Optional path to .onnx model file. Auto-discovers default if omitted.
+            model_name: Legacy compatibility argument (ignored in ONNX mode).
+            pretrained: Legacy compatibility argument (ignored in ONNX mode).
+            device: Execution device identifier ('cpu', 'cuda', etc.).
         """
-        self.model_name = model_name
-        self.pretrained = pretrained
+        self.model_path = self._resolve_model_path(model_path)
+        self.session = self._get_or_create_session(self.model_path, device=device)
 
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device if isinstance(device, str) else device)
+        # Inspect model input/output metadata
+        inputs = self.session.get_inputs()
+        self.input_name = inputs[0].name
+        input_shape = inputs[0].shape  # e.g. [batch_size, 3, 224, 224] or [batch_size, 3, 256, 256]
 
-        self.model, self.preprocess = self._get_or_load_model(
-            self.model_name, self.pretrained, self.device
+        # Determine target image resolution from model graph
+        try:
+            self.target_size = int(input_shape[2]) if len(input_shape) >= 4 and isinstance(input_shape[2], int) else 224
+        except Exception:
+            self.target_size = 224
+
+        outputs = self.session.get_outputs()
+        self.output_name = outputs[0].name
+
+    @classmethod
+    def _resolve_model_path(cls, model_path: Optional[Union[str, Path]]) -> Path:
+        """Resolve valid ONNX model path from arguments, environment, or default locations."""
+        if model_path:
+            p = Path(model_path)
+            if p.exists():
+                return p
+            raise FileNotFoundError(f"Specified ONNX model file not found at: {model_path}")
+
+        env_path = getenv("CLIP_ONNX_MODEL_PATH")
+        if env_path:
+            p = Path(env_path)
+            if p.exists():
+                return p
+
+        for candidate in DEFAULT_ONNX_CANDIDATES:
+            if candidate.exists():
+                return candidate
+
+        raise FileNotFoundError(
+            f"No ONNX model found. Checked candidate paths:\n"
+            + "\n".join(f" - {c}" for c in DEFAULT_ONNX_CANDIDATES)
         )
 
     @classmethod
-    def _get_or_load_model(
-        cls, model_name: str, pretrained: str, device: torch.device
-    ) -> Tuple[torch.nn.Module, Any]:
-        """Load and cache the OpenCLIP model and preprocessing transform."""
-        cache_key = (model_name, pretrained, device)
-        if cache_key not in cls._model_cache:
+    def _get_or_create_session(
+        cls, model_path: Path, device: Optional[Any] = None
+    ) -> ort.InferenceSession:
+        """Initialize and cache InferenceSession to keep memory usage minimal."""
+        cache_key = str(model_path.resolve())
+        if cache_key not in cls._session_cache:
+            sess_options = ort.SessionOptions()
+            sess_options.intra_op_num_threads = 2
+            sess_options.inter_op_num_threads = 1
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+            available = ort.get_available_providers()
+            providers = ["CPUExecutionProvider"]
+            if device and "cuda" in str(device).lower() and "CUDAExecutionProvider" in available:
+                providers.insert(0, "CUDAExecutionProvider")
+
             try:
-                model, _, preprocess = open_clip.create_model_and_transforms(
-                    model_name, pretrained=pretrained
+                cls._session_cache[cache_key] = ort.InferenceSession(
+                    str(model_path), sess_options, providers=providers
                 )
-                model = model.to(device)
-                model.eval()
-                cls._model_cache[cache_key] = (model, preprocess)
             except Exception as e:
                 raise RuntimeError(
-                    f"Failed to load OpenCLIP model '{model_name}' ({pretrained}) on {device}: {e}"
+                    f"Failed to load ONNX model from '{model_path}': {e}"
                 ) from e
-        return cls._model_cache[cache_key]
+
+        return cls._session_cache[cache_key]
 
     def generate_image_embedding(self, image_source: Union[str, Path, Image.Image]) -> np.ndarray:
         """Generate a normalized 512-dimensional float32 embedding for an image.
@@ -79,20 +133,55 @@ class EmbeddingService:
         image = self._load_image(image_source)
 
         try:
-            tensor = self.preprocess(image).unsqueeze(0).to(self.device)
+            tensor = self._preprocess_image(image, self.target_size)
         except Exception as e:
             raise ValueError(f"Failed to preprocess image: {e}") from e
 
         try:
-            with torch.no_grad():
-                features = self.model.encode_image(tensor)
-                features = features / features.norm(dim=-1, keepdim=True)
-                embedding = features.squeeze(0).cpu().numpy().astype(np.float32)
+            outputs = self.session.run([self.output_name], {self.input_name: tensor})
+            raw_features = outputs[0]
+            embedding = raw_features.squeeze(0).astype(np.float32)
+
+            # L2 normalization to unit hypersphere
+            norm = np.linalg.norm(embedding)
+            if norm > 0:
+                embedding = embedding / norm
         except Exception as e:
-            raise RuntimeError(f"Error executing OpenCLIP model inference: {e}") from e
+            raise RuntimeError(f"Error executing ONNX model inference: {e}") from e
 
         self._validate_embedding(embedding)
         return embedding
+
+    def _preprocess_image(self, image: Image.Image, target_size: int) -> np.ndarray:
+        """Preprocess PIL image to normalized NCHW tensor using pure PIL and NumPy."""
+        w, h = image.size
+
+        # Resize shortest edge to target size preserving aspect ratio
+        if w < h:
+            new_w = target_size
+            new_h = int(round(target_size * h / w))
+        else:
+            new_w = int(round(target_size * w / h))
+            new_h = target_size
+
+        resample_mode = Image.BICUBIC if hasattr(Image, "BICUBIC") else Image.BILINEAR
+        resized = image.resize((new_w, new_h), resample=resample_mode)
+
+        # Center crop to target_size x target_size
+        left = (new_w - target_size) // 2
+        top = (new_h - target_size) // 2
+        cropped = resized.crop((left, top, left + target_size, top + target_size))
+
+        # Convert to float32 [0.0, 1.0]
+        arr = np.array(cropped, dtype=np.float32) / 255.0
+
+        # CLIP normalization: (image - mean) / std
+        arr = (arr - CLIP_MEAN) / CLIP_STD
+
+        # Transpose HWC -> CHW and add batch dimension -> NCHW (1, 3, H, W)
+        arr = np.transpose(arr, (2, 0, 1))
+        arr = np.expand_dims(arr, axis=0)
+        return np.ascontiguousarray(arr, dtype=np.float32)
 
     def _load_image(self, image_source: Union[str, Path, Image.Image]) -> Image.Image:
         """Load and convert input image to RGB PIL Image format."""

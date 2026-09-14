@@ -1,0 +1,18 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+open-clip-torch
+faiss-cpu
+fastapi[standard]
+uvicorn[standard]
+sqlalchemy
+alembic
+psycopg2-binary
+python-dotenv
+google-genai
+google-generativeai
+pydantic
+websockets
+httpx
+numpy
+pillow

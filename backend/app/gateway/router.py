@@ -84,6 +84,22 @@ async def get_pipeline_run_status_endpoint(
     return status_response
 
 
+@router.get(
+    "/api/v1/pipeline/runs",
+    status_code=status.HTTP_200_OK,
+    summary="List recent pipeline runs",
+)
+async def list_pipeline_runs_endpoint(
+    limit: int = 25,
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieves recent pipeline runs from the shared database, with latest stage and status.
+    """
+    return service.list_pipeline_runs(db, limit=limit)
+
+
+
 # -----------------------------------------------------------------------------
 # 2. WebSocket Event Streaming Channel
 # -----------------------------------------------------------------------------
@@ -171,20 +187,18 @@ async def websocket_pipeline_stream(
 #     )
 
 
-@router.post(
-    "/api/v1/rag/run",
-    response_model=NotImplementedResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="[STUB] Step 4: RAG Module Integration",
-)
-async def rag_run_stub():
-    """Route stub for Step 4 (RAG Module Integration) owned by Faizan."""
-    return NotImplementedResponse(
-        status="not_implemented",
-        step="Step 4 (RAG Module Integration)",
-        owner="Faizan",
-        message="RAG module integration is pending execution by Faizan.",
-    )
+# The former RAG 501 stub is intentionally disabled. The mounted
+# rag_router now owns the /api/v1/rag routes.
+#
+# @router.post(
+#     "/api/v1/rag/run",
+#     response_model=NotImplementedResponse,
+#     status_code=status.HTTP_501_NOT_IMPLEMENTED,
+#     summary="[STUB] Step 4: RAG Module Integration",
+# )
+# async def rag_run_stub():
+#     """Route stub for Step 4 (RAG Module Integration) owned by Faizan."""
+#     return NotImplementedResponse(...)
 
 
 @router.post(

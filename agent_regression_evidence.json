@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-09-14T00:59:26.532628+00:00",
+  "summary": {
+    "Scenario 1 (Success Flow)": "PASS",
+    "Scenario 2 (Insufficient Data)": "PASS",
+    "Scenario 3 (Failure Path & Bounded Recovery)": "FAIL",
+    "Scenario 4 (Empty State Graceful Degradation)": "PASS"
+  },
+  "test_runs": {
+    "scenario_1_success": {
+      "run_id": "2cc52f4f-651b-436b-a01c-5a296dae506d",
+      "decision": "generate_report",
+      "status": "completed"
+    },
+    "scenario_2_weak": {
+      "run_id": "76501d04-b21d-44f6-ba51-d245989176f9",
+      "decision": "needs_review",
+      "status": "pending_review"
+    },
+    "scenario_3_failure": {
+      "run_id": "6c02746c-8d70-4ccb-9061-920a9166600e",
+      "decision": "flag_incomplete",
+      "status": "flagged_incomplete",
+      "duration_sec": 9.267951726913452
+    },
+    "scenario_4_empty": {
+      "run_id": "09710a8a-7823-4fb8-ade7-1763ed74336f",
+      "decision": "flag_incomplete",
+      "status": "flagged_incomplete"
+    }
+  }
+}

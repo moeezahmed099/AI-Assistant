@@ -141,14 +141,30 @@ def get_pipeline_run_status(db: Session, pipeline_run_id: str) -> Optional[Pipel
         .first()
     )
     if agent_record:
+        action_records = (
+            db.query(models.AgentAction)
+            .filter(models.AgentAction.agent_run_id == agent_record.agent_run_id)
+            .all()
+        )
+        actions_list = [
+            {
+                "id": str(a.id),
+                "action_type": a.action_type,
+                "payload": a.payload,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in action_records
+        ]
         agent_result = {
             "agent_run_id": str(agent_record.agent_run_id),
             "status": agent_record.status,
             "decision": agent_record.decision,
             "reason": agent_record.reason,
+            "actions": actions_list,
             "created_at": agent_record.created_at.isoformat() if agent_record.created_at else None,
             "completed_at": agent_record.completed_at.isoformat() if agent_record.completed_at else None,
         }
+
 
     # Formulate events history
     events_list: List[Dict[str, Any]] = []
@@ -223,3 +239,33 @@ def update_pipeline_status(
 
     logger.info(f"Updated pipeline_run_id={pipeline_run_id} to status={new_status.value}")
     return run
+
+
+def list_pipeline_runs(db: Session, limit: int = 25) -> List[Dict[str, Any]]:
+    """List recent pipeline runs from the shared database."""
+    runs = (
+        db.query(models.PipelineRun)
+        .order_by(models.PipelineRun.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    result = []
+    for r in runs:
+        # Check if there are events for this run to provide a summary
+        latest_event = (
+            db.query(models.ModuleEvent)
+            .filter(models.ModuleEvent.pipeline_run_id == str(r.id))
+            .order_by(models.ModuleEvent.created_at.desc())
+            .first()
+        )
+        result.append({
+            "pipeline_run_id": str(r.id),
+            "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "latest_module": latest_event.module if latest_event else "gateway",
+            "latest_event": latest_event.event if latest_event else "created",
+            "latest_message": latest_event.message if latest_event else "Pipeline run initialized.",
+        })
+    return result
+

@@ -6,8 +6,6 @@ import numpy as np
 from PIL import Image
 import torch
 import torch.nn as nn
-from torchvision.models import ResNet50_Weights, resnet50
-
 MODEL_NAME = "resnet50"
 EMBEDDING_DIMENSION = 2048
 
@@ -21,7 +19,7 @@ class ResNet50EmbeddingService:
         self,
         device: Optional[Union[str, torch.device]] = None,
     ) -> None:
-        """Initialize the ResNet50EmbeddingService and load model into memory once.
+        """Initialize the ResNet50EmbeddingService with deferred model loading.
 
         Args:
             device: Execution device ('cuda', 'cpu', or torch.device). Auto-selects CUDA if available.
@@ -31,7 +29,25 @@ class ResNet50EmbeddingService:
         else:
             self.device = torch.device(device if isinstance(device, str) else device)
 
-        self.model, self.preprocess = self._get_or_load_model(self.device)
+        self._model: Optional[nn.Module] = None
+        self._preprocess: Optional[Any] = None
+
+    def _ensure_model_loaded(self) -> None:
+        """Ensure model and preprocessing transform are loaded into memory on first access."""
+        if self._model is None or self._preprocess is None:
+            self._model, self._preprocess = self._get_or_load_model(self.device)
+
+    @property
+    def model(self) -> nn.Module:
+        """Lazily load and retrieve the ResNet50 model."""
+        self._ensure_model_loaded()
+        return self._model
+
+    @property
+    def preprocess(self) -> Any:
+        """Lazily load and retrieve the preprocessing transforms."""
+        self._ensure_model_loaded()
+        return self._preprocess
 
     @classmethod
     def _get_or_load_model(
@@ -41,6 +57,8 @@ class ResNet50EmbeddingService:
         cache_key = (MODEL_NAME, device)
         if cache_key not in cls._model_cache:
             try:
+                from torchvision.models import ResNet50_Weights, resnet50
+
                 weights = ResNet50_Weights.DEFAULT
                 full_model = resnet50(weights=weights)
                 # Remove final fully connected classification layer

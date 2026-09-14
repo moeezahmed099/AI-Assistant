@@ -21,7 +21,7 @@ from backend.app.gateway.database import init_db
 from backend.app.gateway.orchestrator_poller import poll_and_trigger
 from backend.app.gateway.router import router as gateway_router
 from backend.app.modules.agent.router import router as agent_router
-from app.services.search_service_registry import get_search_service
+from app.rag_router import router as rag_router
 from app.vision_router import router as vision_router
 
 logging.basicConfig(
@@ -54,13 +54,6 @@ async def lifespan(app: FastAPI):
         logger.info("Gateway database initialized successfully.")
     except Exception as exc:
         logger.warning(f"Could not auto-initialize DB tables on startup (may be handled externally): {exc}")
-
-    # Preload Vision's CLIP model and FAISS index for the mounted router.
-    try:
-        get_search_service()
-        logger.info("Vision search service preloaded successfully.")
-    except Exception as exc:
-        logger.warning(f"Could not preload Vision search service during lifespan: {exc}")
 
     poller_task = asyncio.create_task(
         _poll_forever(),
@@ -99,6 +92,7 @@ app.add_middleware(
 # Mount Routers
 app.include_router(gateway_router)
 app.include_router(agent_router)
+app.include_router(rag_router)
 
 
 @app.get("/health", tags=["Health"])
