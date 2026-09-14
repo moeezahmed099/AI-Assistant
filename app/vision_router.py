@@ -48,6 +48,9 @@ from app.db.shared_database import (
     get_extracted_data_by_run_id,
     get_module_events_by_run_id,
     get_pipeline_run,
+    insert_asset,
+    insert_extracted_data,
+    insert_module_event,
     is_shared_db_configured,
     update_pipeline_run_status,
 )
@@ -670,6 +673,8 @@ async def search_endpoint(
     top_k_query: Optional[int] = Query(None, alias="top_k", description="Number of top results (Query param)"),
     model: Optional[str] = Form(None, description="Model choice: 'clip' (default) or 'resnet'"),
     model_query: Optional[str] = Query(None, alias="model", description="Model choice: 'clip' or 'resnet'"),
+    run_id: Optional[str] = Form(None, description="Optional active pipeline run UUID to transition to vision_complete"),
+    run_id_query: Optional[str] = Query(None, alias="run_id", description="Optional active pipeline run UUID"),
 ):
     """Primary visual search endpoint supporting CLIP / ResNet model selection,
     form uploads, query params, and JSON bodies.
@@ -677,6 +682,7 @@ async def search_endpoint(
     resolved_catalog_fn = catalog_filename if catalog_filename is not None else catalog_filename_query
     requested_top_k = top_k if top_k is not None else top_k_query
     selected_model = model if model is not None else model_query
+    selected_run_id = run_id if run_id is not None else run_id_query
 
     # Also parse JSON body if submitted as application/json
     content_type = request.headers.get("content-type", "")
@@ -690,6 +696,8 @@ async def search_endpoint(
                     requested_top_k = body_json.get("top_k")
                 if selected_model is None and "model" in body_json:
                     selected_model = body_json.get("model")
+                if selected_run_id is None and "run_id" in body_json:
+                    selected_run_id = body_json.get("run_id")
         except Exception:
             pass
 
@@ -709,12 +717,60 @@ async def search_endpoint(
             detail="top_k must be an integer between 1 and 50.",
         )
 
-    return await execute_search_pipeline(
+    search_res = await execute_search_pipeline(
         file=file,
         catalog_filename=resolved_catalog_fn,
         requested_top_k=requested_top_k,
         model_choice=selected_model,
     )
+
+    # If run_id is provided and shared DB is configured, record asset/extracted_data and update run status
+    if selected_run_id and str(selected_run_id).strip() and is_shared_db_configured():
+        try:
+            clean_run_id = str(uuid.UUID(str(selected_run_id).strip()))
+            if check_pipeline_run_exists(clean_run_id):
+                asset_id = None
+                if file is not None:
+                    try:
+                        safe_fn = file.filename or "query.jpg"
+                        asset_id = insert_asset(
+                            pipeline_run_id=clean_run_id,
+                            filename=safe_fn,
+                            mime_type=file.content_type or "image/jpeg",
+                            storage_uri=f"assets/{safe_fn}",
+                        )
+                    except Exception as e:
+                        logging.warning(f"Could not record query asset for run {clean_run_id}: {e}")
+
+                matches_dict = [r.model_dump() for r in search_res.results]
+                primary_match_dict = matches_dict[0] if matches_dict else None
+                top_conf = float(primary_match_dict.get("similarity_score", 0.0)) if primary_match_dict else 0.0
+
+                extracted_payload = {
+                    "pipeline_run_id": clean_run_id,
+                    "status": "completed",
+                    "primary_match": primary_match_dict,
+                    "matches": matches_dict,
+                    "confidence": top_conf,
+                }
+                insert_extracted_data(
+                    pipeline_run_id=clean_run_id,
+                    content=extracted_payload,
+                    model=search_res.model_used,
+                    confidence=top_conf,
+                    asset_id=asset_id,
+                )
+                insert_module_event(
+                    pipeline_run_id=clean_run_id,
+                    event="completed",
+                    message=f"Visual search completed with {len(matches_dict)} matches via search endpoint.",
+                )
+                update_pipeline_run_status(clean_run_id, "vision_complete")
+                logging.info(f"Pipeline run {clean_run_id} transitioned to vision_complete via search endpoint.")
+        except Exception as exc:
+            logging.warning(f"Failed to record search results for pipeline run {selected_run_id}: {exc}")
+
+    return search_res
 
 
 # ============================================================================
