@@ -46,12 +46,13 @@ flowchart TD
     end
 
     subgraph VisionModule ["Vision Module (Muneeb)"]
+        VAdapter["Vision Adapter"]
         FAISS["FAISS IndexIDMap2 (512-dim)"]
         VModel["CLIP / MobileCLIP Vision Encoder"]
-        VAdapter["Vision Adapter"]
     end
 
     subgraph RAGModule ["RAG Module (Faizan)"]
+        RAGRouter["RAG Router & Adapter"]
         Qdrant[("Qdrant Vector Cloud")]
         GeminiLLM["Gemini LLM (1.5 Flash / 3.5 Flash)"]
         HCheck["Hallucination & Groundedness Checker"]
@@ -63,32 +64,33 @@ flowchart TD
     end
 
     %% Workflow Steps
-    Client -->|1. POST /api/v1/pipeline/run| GWRouter
-    GWRouter -->|Initialize run: created| T_Runs
-    GWRouter -->|Subscribe to trace events| WSServer
-    WSServer -.->|Live updates| Client
+    Client -->|"1. POST /api/v1/pipeline/run"| GWRouter
+    GWRouter -->|"Initialize run: created"| T_Runs
+    GWRouter -->|"Subscribe to trace events"| WSServer
+    WSServer -.->|"Live updates"| Client
 
-    Client -->|2. POST /api/v1/gateway/run (Upload Image)| VisionModule
-    VAdapter -->|Query similarity| FAISS
-    VAdapter -->|Lookup metadata| T_Catalog
-    VAdapter -->|Write match result| T_Extracted
-    VAdapter -->|Update status: vision_complete| T_Runs
+    Client -->|"2. POST /api/v1/gateway/run - Upload Image"| VAdapter
+    VAdapter -->|"Query similarity"| FAISS
+    VAdapter -->|"Lookup metadata"| T_Catalog
+    VAdapter -->|"Write match result"| T_Extracted
+    VAdapter -->|"Update status: vision_complete"| T_Runs
 
-    Poller -->|3. Detects vision_complete (Atomic Claim)| T_Runs
-    Poller -->|4. HTTP POST /api/v1/rag/process| RAGModule
-    RAGModule -->|Query dense vectors| Qdrant
-    RAGModule -->|Grounded synthesis| GeminiLLM
-    RAGModule -->|Validate claims| HCheck
-    RAGModule -->|Persist context & citations| T_RAG
-    RAGModule -->|Update status: rag_complete| T_Runs
+    Poller -->|"3. Detects vision_complete"| T_Runs
+    Poller -->|"4. HTTP POST /api/v1/rag/process"| RAGRouter
+    RAGRouter -->|"Query dense vectors"| Qdrant
+    RAGRouter -->|"Grounded synthesis"| GeminiLLM
+    RAGRouter -->|"Validate claims"| HCheck
+    RAGRouter -->|"Persist context & citations"| T_RAG
+    RAGRouter -->|"Update status: rag_complete"| T_Runs
 
-    Poller -->|5. Detects rag_complete (Atomic Claim)| T_Runs
-    Poller -->|6. Invoke in-process run_agent()| AgentModule
-    AgentModule -->|Read Vision & RAG records| DataLayer
-    AgentModule -->|Evaluate 4-path rules| Rules
-    AgentModule -->|Record audit trail| T_Agent
-    AgentModule -->|Final status: agent_complete| T_Runs
-    AgentModule -->|Emit EVENT_STATUS_UPDATED| WSServer
+    Poller -->|"5. Detects rag_complete"| T_Runs
+    Poller -->|"6. Invoke in-process run_agent"| Rules
+    Rules -->|"Read Vision match"| T_Extracted
+    Rules -->|"Read grounded context"| T_RAG
+    Rules -->|"Evaluate 4-path rules"| Actions
+    Actions -->|"Record audit trail"| T_Agent
+    Actions -->|"Final status: agent_complete"| T_Runs
+    Actions -->|"Emit status update"| WSServer
 ```
 
 ---
